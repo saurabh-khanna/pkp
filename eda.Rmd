@@ -20,3 +20,10 @@ pacman::p_load(tidyverse)
 df <- read_csv(here::here("data", "beacon.csv"))
 ```
 
+
+## EDA
+
+```{r}
+df
+```
+
