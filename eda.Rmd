@@ -1,0 +1,22 @@
+---
+title: "Beacon EDA"
+author: "Saurabh Khanna"
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+# knitr options
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.retina = 4)
+```
+
+```{r message=FALSE, warning=FALSE}
+# Libraries
+pacman::p_load(tidyverse)
+
+# Data
+df <- read_csv(here::here("data", "beacon.csv"))
+```
+
