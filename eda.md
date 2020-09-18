@@ -1,38 +1,52 @@
 Beacon EDA
 ================
 Saurabh Khanna
-2020-09-16
+2020-09-18
 
-  - [EDA](#eda)
+  - [Filtering out observations for
+    Africa](#filtering-out-observations-for-africa)
+  - [Number of observations](#number-of-observations)
+  - [Number of total records](#number-of-total-records)
+  - [Number of OJS v2 installations](#number-of-ojs-v2-installations)
+  - [Number of OJS v3 installations](#number-of-ojs-v3-installations)
 
-``` r
-# Libraries
-pacman::p_load(tidyverse)
+### Filtering out observations for Africa
 
-# Data
-df <- read_csv(here::here("data", "beacon.csv"))
-```
+| country                      |  n | ojs\_v2 | ojs\_v3 | records |
+| :--------------------------- | -: | ------: | ------: | ------: |
+| Nigeria                      | 74 |       6 |      68 |   12047 |
+| Kenya                        | 24 |       8 |      16 |    4986 |
+| South Africa                 | 24 |       1 |      16 |   18507 |
+| Morocco                      | 19 |       3 |      16 |    4865 |
+| Algeria                      | 15 |       7 |       8 |    4738 |
+| Egypt                        | 15 |       3 |      11 |    3734 |
+| Ethiopia                     |  8 |       0 |       6 |    1903 |
+| Ghana                        |  8 |       1 |       7 |     265 |
+| Tanzania, United Republic of |  5 |       0 |       5 |     648 |
+| Angola                       |  4 |       1 |       3 |       0 |
+| Uganda                       |  3 |       0 |       3 |     366 |
+| Libya                        |  2 |       0 |       2 |     756 |
+| Mozambique                   |  2 |       2 |       0 |     156 |
+| Tunisia                      |  2 |       0 |       2 |       0 |
+| Zambia                       |  2 |       0 |       2 |     411 |
+| Cameroon                     |  1 |       0 |       0 |       0 |
+| Guinea                       |  1 |       0 |       1 |       0 |
+| Mali                         |  1 |       0 |       1 |     761 |
+| Senegal                      |  1 |       0 |       1 |       0 |
+| Zimbabwe                     |  1 |       0 |       1 |       0 |
 
-## EDA
+### Number of observations
 
-``` r
-df
-```
+<img src="eda_files/figure-gfm/unnamed-chunk-4-1.png" width="672" />
 
-    ## # A tibble: 15,224 x 16
-    ##       id application version beacon_id oai_url stats_id first_beacon       
-    ##    <dbl> <chr>       <chr>   <chr>     <chr>   <chr>    <dttm>             
-    ##  1     1 ojs         ojs2/2~ ojs-5442~ https:~ 5442f32~ 2020-05-31 00:00:00
-    ##  2     2 ojs         ojs2/3~ ojs-5a3d~ http:/~ 5a3dc63~ 2020-05-31 00:00:00
-    ##  3     3 ojs         ojs2/2~ ojs-52ca~ http:/~ 52cac44~ 2020-05-31 00:00:00
-    ##  4     4 ojs         ojs2/2~ ojs-5d1b~ https:~ 5d1b446~ 2020-05-31 00:00:00
-    ##  5     5 ojs         ojs2/2~ ojs-569e~ http:/~ 569e27f~ 2020-06-01 00:00:00
-    ##  6     6 ojs         ojs2/2~ ojs-5996~ http:/~ 5996d8b~ 2020-06-01 00:00:00
-    ##  7     7 ojs         ojs2/2~ ojs-5d4f~ https:~ 5d4f5ad~ 2020-06-01 00:00:00
-    ##  8     8 ojs         ojs2/2~ ojs-596d~ http:/~ 596da86~ 2020-06-01 00:00:00
-    ##  9     9 ojs         ojs2/2~ ojs-5a8e~ https:~ 5a8e3cb~ 2020-06-01 00:00:00
-    ## 10    10 ojs         ojs2/2~ ojs-5769~ https:~ 5769349~ 2020-06-01 00:00:00
-    ## # ... with 15,214 more rows, and 9 more variables: last_beacon <dttm>,
-    ## #   last_oai_response <dttm>, admin_email <chr>, issn <chr>, country <chr>,
-    ## #   total_record_count <dbl>, last_completed_update <dttm>, errors <dbl>,
-    ## #   last_error <chr>
+### Number of total records
+
+<img src="eda_files/figure-gfm/unnamed-chunk-5-1.png" width="672" />
+
+### Number of OJS v2 installations
+
+<img src="eda_files/figure-gfm/unnamed-chunk-6-1.png" width="672" />
+
+### Number of OJS v3 installations
+
+<img src="eda_files/figure-gfm/unnamed-chunk-7-1.png" width="672" />

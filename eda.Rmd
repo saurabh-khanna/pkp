@@ -9,21 +9,150 @@ output:
 
 ```{r setup, include=FALSE}
 # knitr options
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.retina = 4)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina = 4)
 ```
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse)
+pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets)
 
 # Data
 df <- read_csv(here::here("data", "beacon.csv"))
+shapefile <- read_sf("data/TM_WORLD_BORDERS_SIMPL-0.3.shp")
 ```
 
-
-## EDA
 
 ```{r}
-df
+### Mapping countries to continents
+continents <-
+  df %>% 
+  pull(country) %>% 
+  countrycode(origin = "country.name", destination = "continent")
+
+df <- 
+  df %>%
+  bind_cols(continents) %>% 
+  rename(continent = `...17`)
 ```
 
+
+### Filtering out observations for Africa
+
+
+```{r}
+df_reduced_africa <-
+  df %>%
+  mutate(
+    n = 1,
+    ojs_v2 = str_detect(version, "^ojs2/2"),
+    ojs_v3 = str_detect(version, "^ojs2/3")
+  ) %>% 
+  filter(continent == "Africa") %>%
+  group_by(country) %>% 
+  summarize(
+    n = sum(n, na.rm = T),
+    ojs_v2 = sum(ojs_v2, na.rm = T),
+    ojs_v3 = sum(ojs_v3, na.rm = T),
+    records = sum(total_record_count, na.rm = T)
+  )
+
+df_reduced_africa %>% 
+  arrange(-n) %>% 
+  knitr::kable()
+```
+
+
+### Number of observations
+
+```{r}
+shapefile %>% 
+  janitor::clean_names() %>% 
+  filter(region == 2) %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania, United Republic of", country)
+  ) %>% 
+  left_join(df_reduced_africa, by = "country") %>% 
+  ggplot() +
+  geom_sf(aes(fill = n), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
+  ) +
+  theme_void() +
+  labs(
+    fill = "Number of observations"
+  )
+```
+
+
+### Number of total records
+
+```{r}
+shapefile %>% 
+  janitor::clean_names() %>% 
+  filter(region == 2) %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania, United Republic of", country)
+  ) %>% 
+  left_join(df_reduced_africa, by = "country") %>% 
+  ggplot() +
+  geom_sf(aes(fill = records), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
+  ) +
+  theme_void() +
+  labs(
+    fill = "Number of records"
+  )
+```
+
+
+### Number of OJS v2 installations
+
+```{r}
+shapefile %>% 
+  janitor::clean_names() %>% 
+  filter(region == 2) %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania, United Republic of", country)
+  ) %>% 
+  left_join(df_reduced_africa, by = "country") %>% 
+  ggplot() +
+  geom_sf(aes(fill = ojs_v2), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
+  ) +
+  theme_void() +
+  labs(
+    fill = "OJS v2 installations"
+  )
+```
+
+
+### Number of OJS v3 installations
+
+```{r}
+shapefile %>% 
+  janitor::clean_names() %>% 
+  filter(region == 2) %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania, United Republic of", country)
+  ) %>% 
+  left_join(df_reduced_africa, by = "country") %>% 
+  ggplot() +
+  geom_sf(aes(fill = ojs_v3), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
+  ) +
+  theme_void() +
+  labs(
+    fill = "OJS v3 installations"
+  )
+```
