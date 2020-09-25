@@ -3,24 +3,33 @@ title: "Beacon EDA"
 author: "Saurabh Khanna"
 date: "`r Sys.Date()`"
 output: 
-  github_document:
+  html_document:
     toc: true
 ---
 
 ```{r setup, include=FALSE}
 # knitr options
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina = 4)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets)
+pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets, jsonlite)
 
 # Data
 df <- read_csv(here::here("data", "beacon.csv"))
-shapefile <- read_sf("data/TM_WORLD_BORDERS_SIMPL-0.3.shp")
+shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
+
+df_pred1 <- 
+  fromJSON(here::here("data", "is_this_journal_pred.json"), flatten = T) %>% 
+  as_data_frame()
+  
+df_pred2 <- read_csv(here::here("data", "predatory_msperlin.csv"))
 ```
 
+
+
+## Beacon EDA
 
 ```{r}
 ### Mapping countries to continents
@@ -32,12 +41,12 @@ continents <-
 df <- 
   df %>%
   bind_cols(continents) %>% 
-  rename(continent = `...17`)
+  rename(continent = `...19`) %>% 
+  distinct(issn, .keep_all = TRUE)
 ```
 
 
 ### Filtering out observations for Africa
-
 
 ```{r}
 df_reduced_africa <-
@@ -58,7 +67,7 @@ df_reduced_africa <-
 
 df_reduced_africa %>% 
   arrange(-n) %>% 
-  knitr::kable()
+  datatable()
 ```
 
 
@@ -74,6 +83,9 @@ shapefile %>%
     country = if_else(country == "United Republic of Tanzania", "Tanzania, United Republic of", country)
   ) %>% 
   left_join(df_reduced_africa, by = "country") %>% 
+  mutate(
+    n = replace_na(n, 0)
+  ) %>% 
   ggplot() +
   geom_sf(aes(fill = n), size = 0.3) +
   scale_fill_gradientn(
@@ -98,6 +110,9 @@ shapefile %>%
     country = if_else(country == "United Republic of Tanzania", "Tanzania, United Republic of", country)
   ) %>% 
   left_join(df_reduced_africa, by = "country") %>% 
+  mutate(
+    records = replace_na(records, 0)
+  ) %>% 
   ggplot() +
   geom_sf(aes(fill = records), size = 0.3) +
   scale_fill_gradientn(
@@ -122,6 +137,9 @@ shapefile %>%
     country = if_else(country == "United Republic of Tanzania", "Tanzania, United Republic of", country)
   ) %>% 
   left_join(df_reduced_africa, by = "country") %>% 
+  mutate(
+    ojs_v2 = replace_na(ojs_v2, 0)
+  ) %>% 
   ggplot() +
   geom_sf(aes(fill = ojs_v2), size = 0.3) +
   scale_fill_gradientn(
@@ -146,6 +164,9 @@ shapefile %>%
     country = if_else(country == "United Republic of Tanzania", "Tanzania, United Republic of", country)
   ) %>% 
   left_join(df_reduced_africa, by = "country") %>% 
+  mutate(
+    ojs_v3 = replace_na(ojs_v3, 0)
+  ) %>% 
   ggplot() +
   geom_sf(aes(fill = ojs_v3), size = 0.3) +
   scale_fill_gradientn(
@@ -156,3 +177,15 @@ shapefile %>%
     fill = "OJS v3 installations"
   )
 ```
+
+
+## Merging with scraped list of predatory journals
+
+
+```{r}
+df_predmatch <-
+  df_pred2 %>% mutate_all(as_factor) %>%
+  inner_join(df, by = "issn") %>% 
+  count(country)
+```
+
