@@ -14,20 +14,28 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets, jsonlite)
+pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets, jsonlite, rgeolocate, urltools)
 
 # Data
 df <- read_csv(here::here("data", "beacon.csv"))
 shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
-
-df_pred1 <- 
-  fromJSON(here::here("data", "is_this_journal_pred.json"), flatten = T) %>% 
-  as_data_frame()
-  
 df_pred2 <- read_csv(here::here("data", "predatory_msperlin.csv"))
+tld <- read_csv(here::here("data", "tld-country.csv"))
 ```
 
+```{r}
+#df %>% distinct(oai_url) summarize_all(~ sum(is.na(.)))
+df <-
+  bind_cols(
+    df,
+    df %>% pull(oai_url) %>% domain() %>% tld_extract()
+  ) %>% 
+  left_join(tld, by = "tld")
 
+df %>% 
+  select(country, country_clean) %>% 
+  summarize_all(~ sum(is.na(.)))
+```
 
 ## Beacon EDA
 
@@ -45,8 +53,9 @@ df <-
   distinct(issn, .keep_all = TRUE)
 ```
 
+Dropping duplicates based on ISSN for now.
 
-### Filtering out observations for Africa
+### OJS installations for Africa
 
 ```{r}
 df_reduced_africa <-
@@ -71,7 +80,7 @@ df_reduced_africa %>%
 ```
 
 
-### Number of observations
+### Number of installations
 
 ```{r}
 shapefile %>% 
@@ -96,34 +105,6 @@ shapefile %>%
     fill = "Number of observations"
   )
 ```
-
-
-### Number of total records
-
-```{r}
-shapefile %>% 
-  janitor::clean_names() %>% 
-  filter(region == 2) %>%
-  rename(country = name) %>% 
-  mutate(
-    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
-    country = if_else(country == "United Republic of Tanzania", "Tanzania, United Republic of", country)
-  ) %>% 
-  left_join(df_reduced_africa, by = "country") %>% 
-  mutate(
-    records = replace_na(records, 0)
-  ) %>% 
-  ggplot() +
-  geom_sf(aes(fill = records), size = 0.3) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
-  ) +
-  theme_void() +
-  labs(
-    fill = "Number of records"
-  )
-```
-
 
 ### Number of OJS v2 installations
 
@@ -179,13 +160,53 @@ shapefile %>%
 ```
 
 
-## Merging with scraped list of predatory journals
-
+### Number of total records
 
 ```{r}
-df_predmatch <-
-  df_pred2 %>% mutate_all(as_factor) %>%
-  inner_join(df, by = "issn") %>% 
-  count(country)
+shapefile %>% 
+  janitor::clean_names() %>% 
+  filter(region == 2) %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania, United Republic of", country)
+  ) %>% 
+  left_join(df_reduced_africa, by = "country") %>% 
+  mutate(
+    records = replace_na(records, 0)
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = records), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
+  ) +
+  theme_void() +
+  labs(
+    fill = "Number of records"
+  )
+```
+
+
+## Merging with scraped list of predatory journals
+
+Don't see any matches from Africa (yet), most likely because the country variable needs to be cleaned first (currently includes US states being entered as countries etc.).
+
+```{r}
+df_pred2 %>%
+  inner_join(df, by = "issn") %>%
+  mutate(
+    n = 1,
+    ojs_v2 = str_detect(version, "^ojs2/2"),
+    ojs_v3 = str_detect(version, "^ojs2/3")
+  ) %>% 
+  drop_na(country) %>% 
+  group_by(country) %>% 
+  summarize(
+    `OJS Installations 'listed' as predatory` = sum(n, na.rm = T),
+    `OJSv2 Installations 'listed' as predatory` = sum(ojs_v2, na.rm = T),
+    `OJSv3 Installations 'listed' as predatory` = sum(ojs_v3, na.rm = T)
+  ) %>% 
+  arrange(desc(`OJS Installations 'listed' as predatory`)) %>% 
+  datatable()
 ```
 
