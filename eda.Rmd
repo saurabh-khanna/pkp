@@ -12,6 +12,8 @@ output:
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
+## Beacon EDA
+
 ```{r message=FALSE, warning=FALSE}
 # Libraries
 pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets, jsonlite, rgeolocate, urltools)
@@ -25,22 +27,49 @@ tld <- read_csv(here::here("data", "tld-country.csv"))
 
 ```{r}
 #df %>% distinct(oai_url) summarize_all(~ sum(is.na(.)))
-df <-
+df <- df %>% 
   bind_cols(
     df,
     df %>% pull(oai_url) %>% domain() %>% tld_extract()
   ) %>% 
   left_join(tld, by = "tld")
-
-df %>% 
-  select(country, country_clean) %>% 
-  summarize_all(~ sum(is.na(.)))
 ```
 
-## Beacon EDA
+```{r}
+df %>% distinct(oai_url) %>% pull(oai_url) %>% domain()
+```
+
+
+### Country cleaning
+
+Countries added for 14461 entries / 2241 repositories:
+
+```{r}
+df %>%
+  select(repository_name, contains("country")) %>% 
+  filter(is.na(country) & !is.na(country_clean)) %>% 
+#  distinct() %>% 
+  datatable()
+```
+
+
+Countries mismatch for 773 entries / 252 repositories:
+
+```{r}
+df %>% 
+  #select(repository_name, contains("country")) %>% 
+  filter(country != country_clean) %>% 
+  relocate(id, repository_name, country, country_clean, oai_url)
+```
 
 ```{r}
 ### Mapping countries to continents
+df <-
+  df %>% 
+  mutate(
+    country = if_else(!is.na(country_clean), country_clean, country)
+  )
+
 continents <-
   df %>% 
   pull(country) %>% 
@@ -49,7 +78,7 @@ continents <-
 df <- 
   df %>%
   bind_cols(continents) %>% 
-  rename(continent = `...19`) %>% 
+  rename(continent = `...22`) %>% 
   distinct(issn, .keep_all = TRUE)
 ```
 
