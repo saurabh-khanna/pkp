@@ -16,9 +16,9 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
 Summary (ongoing):
 
-* Total OJS v2 installations found in Africa: 264
-* Total Active OJS v2 installations found in Africa: 158
-* Total OJS v2 installations in Africa found on Beall's list: 1
+* Total OJS v2 journals found in Africa: 250
+* Total OJS v2 installations found in Africa: 39
+* Total OJS v2 journals in Africa found on Beall's list: 1
 
 
 ```{r message=FALSE, warning=FALSE}
@@ -32,6 +32,7 @@ df_pred2 <- read_csv(here::here("data", "predatory_msperlin.csv"))
 tld <- read_csv(here::here("data", "tld-country.csv"))
 ```
 
+
 ```{r}
 #df %>% distinct(oai_url) summarize_all(~ sum(is.na(.)))
 df <- 
@@ -43,28 +44,25 @@ df <-
 ```
 
 
-### Country cleaning
+## Country cleaning
 
-Countries cleaned based on country code top level domains. These codes are also the same as [ISO 3166 codes](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2){target="_blank"}.
+Countries cleaned based on ISO3166 codes.
 
-* Countries added for 14461 observations
-* Countries mismatched for 773 observations (shared with Alec).
-* Country still missing for 5639 observations.
+* Countries added for 11916 journals
+* Countries mismatched for 660 journals (shared with Alec)
+* Country still missing for 4549 journals
 
 ```{r eval=F}
 df %>%
   select(repository_name, contains("country")) %>% 
-  filter(is.na(country) & !is.na(country_clean)) %>% 
-  distinct() %>% 
-  datatable()
+  filter(is.na(country) & !is.na(country_clean))
 ```
 
 
 ```{r eval=F}
 df %>% 
-  #select(repository_name, contains("country")) %>% 
   filter(country != country_clean) %>% 
-  relocate(id, repository_name, country, country_clean, oai_url)
+  relocate(repository_name, country, country_clean, oai_url)
 ```
 
 ```{r}
@@ -75,9 +73,14 @@ df <-
     country = if_else(!is.na(country_clean), country_clean, country),
     ojs_v2 = str_detect(version, "^ojs2/2"),
     ojs_v3 = str_detect(version, "^ojs2/3"),
-    years = (earliest_datestamp %--% last_beacon) / dyears(1),
-    records_per_year = total_record_count / years,
-    active = records_per_year >= 5
+    version_clean = case_when(
+      ojs_v2 ~ "Version 2",
+      ojs_v3 ~ "Version 3",
+      TRUE ~ "Other"
+    )
+    #years = (earliest_datestamp %--% last_beacon) / dyears(1),
+    #records_per_year = total_record_count / years,
+    #active = records_per_year >= 5
   )
 
 continents <-
@@ -88,11 +91,56 @@ continents <-
 df <- 
   df %>%
   bind_cols(continents) %>% 
-  rename(continent = `...27`)
+  rename(continent = `...19`)
 ```
 
 
-### OJS installations for Africa
+### Country count of OJS journals
+
+```{r}
+df %>% 
+  count(country) %>%
+  drop_na(country) %>% 
+  arrange(desc(n)) %>% 
+  head(10) %>%
+  mutate(country = fct_inorder(country, n) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(breaks = scales::breaks_width(2000)) +
+  hrbrthemes::theme_ipsum() +
+  labs(
+    x = "Country",
+    y = "Count"
+  )
+
+# df %>% filter(country == "Indonesia") %>% count(version_clean, name = "journals") %>% arrange(desc(version_clean)) %>% knitr::kable()
+# df %>% filter(country == "Indonesia") %>% distinct(repository_name, .keep_all = T) %>% count(version_clean, name = "installations") %>% arrange(desc(version_clean)) %>% knitr::kable()
+```
+
+### Country count of OJS installations
+
+```{r}
+df %>%
+  distinct(repository_name, .keep_all = TRUE) %>% 
+  count(country) %>% 
+  drop_na(country) %>% 
+  arrange(desc(n)) %>% 
+  head(10) %>%
+  mutate(country = fct_inorder(country, n) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  scale_y_continuous(breaks = scales::breaks_width(200)) +
+  hrbrthemes::theme_ipsum() +
+  labs(
+    x = "Country",
+    y = "Count"
+  )
+```
+
+
+## Journals for Africa
 
 ```{r}
 df_reduced_africa <-
@@ -102,7 +150,7 @@ df_reduced_africa <-
   summarize(
     ojs_v2 = sum(ojs_v2, na.rm = T),
     ojs_v3 = sum(ojs_v3, na.rm = T),
-    records = sum(total_record_count, na.rm = T)
+    #records = sum(total_record_count, na.rm = T)
   )
 
 df_reduced_africa %>% 
@@ -111,7 +159,127 @@ df_reduced_africa %>%
 ```
 
 
-### Number of OJS v2 installations
+### OJS v2 journals
+
+```{r}
+shapefile %>% 
+  janitor::clean_names() %>% 
+  filter(region == 2) %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country)
+  ) %>% 
+  left_join(df_reduced_africa, by = "country") %>%  
+  mutate(
+    ojs_v2 = replace_na(ojs_v2, 0)
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = ojs_v2), size = 0.3) +
+  ggrepel::geom_label_repel(
+    data = . %>% filter(ojs_v2 > 0),
+    aes(lon, lat, label = ojs_v2),
+    nudge_x = -8
+  ) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
+  ) +
+  theme_void() +
+  labs(
+    fill = "OJS v2 journals"
+  )
+```
+
+
+### OJS v3 journals
+
+```{r}
+shapefile %>% 
+  janitor::clean_names() %>% 
+  filter(region == 2) %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country)
+  ) %>% 
+  left_join(df_reduced_africa, by = "country") %>% 
+  mutate(
+    ojs_v3 = replace_na(ojs_v3, 0)
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = ojs_v3), size = 0.3) +
+  ggrepel::geom_label_repel(
+    data = . %>% filter(ojs_v3 >= 3),
+    aes(lon, lat, label = ojs_v3),
+    nudge_x = -8
+  ) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
+  ) +
+  theme_void() +
+  labs(
+    fill = "OJS v3 journals"
+  )
+```
+
+
+```{r, eval=F}
+shapefile %>% 
+  janitor::clean_names() %>% 
+  filter(region == 2) %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country)
+  ) %>% 
+  left_join(df_reduced_africa, by = "country") %>% 
+  mutate(
+    records = replace_na(records, 0)
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = records), size = 0.3) +
+  ggrepel::geom_label_repel(
+    data = . %>% filter(records >= 300),
+    aes(lon, lat, label = records),
+    nudge_x = -8
+  ) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
+  ) +
+  theme_void() +
+  labs(
+    fill = "Number of records"
+  )
+```
+
+
+## Installations for Africa
+
+```{r}
+df_reduced_africa <-
+  df %>%
+  filter(continent == "Africa") %>% 
+  distinct(repository_name, .keep_all = TRUE) %>% 
+  group_by(country) %>% 
+  summarize(
+    ojs_v2 = sum(ojs_v2, na.rm = T),
+    ojs_v3 = sum(ojs_v3, na.rm = T),
+    #records = sum(total_record_count, na.rm = T)
+  )
+
+df_reduced_africa %>% 
+  arrange(-ojs_v2) %>% 
+  datatable()
+```
+
+
+### OJS v2 installations
 
 ```{r}
 shapefile %>% 
@@ -145,7 +313,7 @@ shapefile %>%
 ```
 
 
-### Number of OJS v3 installations
+### OJS v3 installations
 
 ```{r}
 shapefile %>% 
@@ -179,89 +347,6 @@ shapefile %>%
 ```
 
 
-### Number of total records
-
-```{r}
-shapefile %>% 
-  janitor::clean_names() %>% 
-  filter(region == 2) %>%
-  rename(country = name) %>% 
-  mutate(
-    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
-    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
-    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
-    country = if_else(country == "Congo", "Republic of the Congo", country)
-  ) %>% 
-  left_join(df_reduced_africa, by = "country") %>% 
-  mutate(
-    records = replace_na(records, 0)
-  ) %>% 
-  ggplot() +
-  geom_sf(aes(fill = records), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(records >= 300),
-    aes(lon, lat, label = records),
-    nudge_x = -8
-  ) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
-  ) +
-  theme_void() +
-  labs(
-    fill = "Number of records"
-  )
-```
-
-## Active OJS v2 journals in Africa (Draft)
-
-Current defining an OJS v2 journal as `active` if it publishes at least 5 records/articles per year. The interval considered begins from the earliest timestamp recorded and ends at the latest beacon timestamp.
-
-
-```{r}
-df_plot <-
-  df %>% 
-  filter(ojs_v2, continent == "Africa") %>% 
-  group_by(country) %>% 
-  summarize(
-    ojs_v2 = sum(n(), na.rm = T),
-    ojs_v2_active = sum(active, na.rm = T)
-  ) %>% 
-  arrange(-ojs_v2)
-
-datatable(df_plot)
-
-shapefile %>% 
-  janitor::clean_names() %>% 
-  filter(region == 2) %>%
-  rename(country = name) %>% 
-  mutate(
-    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
-    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
-    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
-    country = if_else(country == "Congo", "Republic of the Congo", country)
-  ) %>% 
-  left_join(df_plot, by = "country") %>%  
-  mutate(
-    ojs_v2_active = replace_na(ojs_v2_active, 0)
-  ) %>% 
-  ggplot() +
-  geom_sf(aes(fill = ojs_v2_active), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(ojs_v2_active > 0),
-    aes(lon, lat, label = ojs_v2_active),
-    nudge_x = -8
-  ) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
-  ) +
-  theme_void() +
-  labs(
-    fill = "OJS v2 active\ninstallations"
-  )
-```
-
-
-
 ## Merging with scraped Beall's list
 
 Seeing just [one match](http://journals.uniosun.edu.ng/){target="_blank"} from Africa for now, could be because the country variable needs to be cleaned further (currently includes US states being entered as countries etc.).
@@ -269,11 +354,10 @@ Seeing just [one match](http://journals.uniosun.edu.ng/){target="_blank"} from A
 ```{r}
 df_pred2 %>%
   inner_join(df, by = "issn") %>%
+  mutate(continent = if_else(is.na(continent), "Americas", continent)) %>% 
   count(continent, name = "count") %>% 
-  mutate(continent = if_else(is.na(continent), "North America", continent)) %>% 
   arrange(-count) %>% 
   knitr::kable()
-
 
 # df_pred2 %>%
 #   inner_join(df, by = "issn") %>%
@@ -285,5 +369,16 @@ df_pred2 %>%
 #   ) %>% 
 #   arrange(desc(`OJSv2 Installations 'listed' as predatory`)) %>% 
 #   datatable()
+```
+
+
+## URLs to scrape
+
+```{r}
+df %>%
+  filter(continent == "Africa", ojs_v2) %>% 
+  count(country, domain, name = "count") %>% 
+  arrange(country, -count) %>% 
+  datatable()
 ```
 
