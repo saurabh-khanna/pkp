@@ -5,6 +5,7 @@ date: "`r Sys.Date()`"
 output: 
   html_document:
     toc: true
+    toc_depth: 4
 ---
 
 ```{r setup, include=FALSE}
@@ -23,7 +24,7 @@ Summary (ongoing):
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets, jsonlite, rgeolocate, urltools, lubridate)
+pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets, jsonlite, rgeolocate, urltools, lubridate, state)
 
 # Data
 df <- read_csv(here::here("data", "beacon.csv"))
@@ -95,52 +96,9 @@ df <-
 ```
 
 
-### Country count of OJS journals
+## Africa
 
-```{r}
-df %>% 
-  count(country) %>%
-  drop_na(country) %>% 
-  arrange(desc(n)) %>% 
-  head(10) %>%
-  mutate(country = fct_inorder(country, n) %>% fct_rev()) %>% 
-  ggplot(aes(country, n)) +
-  geom_col() +
-  coord_flip() +
-  scale_y_continuous(breaks = scales::breaks_width(2000)) +
-  hrbrthemes::theme_ipsum() +
-  labs(
-    x = "Country",
-    y = "Count"
-  )
-
-# df %>% filter(country == "Indonesia") %>% count(version_clean, name = "journals") %>% arrange(desc(version_clean)) %>% knitr::kable()
-# df %>% filter(country == "Indonesia") %>% distinct(repository_name, .keep_all = T) %>% count(version_clean, name = "installations") %>% arrange(desc(version_clean)) %>% knitr::kable()
-```
-
-### Country count of OJS installations
-
-```{r}
-df %>%
-  distinct(repository_name, .keep_all = TRUE) %>% 
-  count(country) %>% 
-  drop_na(country) %>% 
-  arrange(desc(n)) %>% 
-  head(10) %>%
-  mutate(country = fct_inorder(country, n) %>% fct_rev()) %>% 
-  ggplot(aes(country, n)) +
-  geom_col(position = "dodge") +
-  coord_flip() +
-  scale_y_continuous(breaks = scales::breaks_width(200)) +
-  hrbrthemes::theme_ipsum() +
-  labs(
-    x = "Country",
-    y = "Count"
-  )
-```
-
-
-## Journals for Africa
+### Journals
 
 ```{r}
 df_reduced_africa <-
@@ -151,15 +109,15 @@ df_reduced_africa <-
     ojs_v2 = sum(ojs_v2, na.rm = T),
     ojs_v3 = sum(ojs_v3, na.rm = T),
     #records = sum(total_record_count, na.rm = T)
-  )
+  ) %>% 
+  mutate(total = ojs_v2 + ojs_v3)
 
 df_reduced_africa %>% 
-  arrange(-ojs_v2) %>% 
+  arrange(-total) %>% 
   datatable()
 ```
 
-
-### OJS v2 journals
+#### OJS v2 journals
 
 ```{r}
 shapefile %>% 
@@ -193,7 +151,7 @@ shapefile %>%
 ```
 
 
-### OJS v3 journals
+#### OJS v3 journals
 
 ```{r}
 shapefile %>% 
@@ -227,39 +185,7 @@ shapefile %>%
 ```
 
 
-```{r, eval=F}
-shapefile %>% 
-  janitor::clean_names() %>% 
-  filter(region == 2) %>%
-  rename(country = name) %>% 
-  mutate(
-    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
-    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
-    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
-    country = if_else(country == "Congo", "Republic of the Congo", country)
-  ) %>% 
-  left_join(df_reduced_africa, by = "country") %>% 
-  mutate(
-    records = replace_na(records, 0)
-  ) %>% 
-  ggplot() +
-  geom_sf(aes(fill = records), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(records >= 300),
-    aes(lon, lat, label = records),
-    nudge_x = -8
-  ) +
-  scale_fill_gradientn(
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
-  ) +
-  theme_void() +
-  labs(
-    fill = "Number of records"
-  )
-```
-
-
-## Installations for Africa
+### Installations
 
 ```{r}
 df_reduced_africa <-
@@ -271,15 +197,15 @@ df_reduced_africa <-
     ojs_v2 = sum(ojs_v2, na.rm = T),
     ojs_v3 = sum(ojs_v3, na.rm = T),
     #records = sum(total_record_count, na.rm = T)
-  )
+  ) %>%
+  mutate(total = ojs_v2 + ojs_v3)
 
 df_reduced_africa %>% 
-  arrange(-ojs_v2) %>% 
+  arrange(-total) %>% 
   datatable()
 ```
 
-
-### OJS v2 installations
+#### OJS v2 installations
 
 ```{r}
 shapefile %>% 
@@ -313,7 +239,7 @@ shapefile %>%
 ```
 
 
-### OJS v3 installations
+#### OJS v3 installations
 
 ```{r}
 shapefile %>% 
@@ -347,7 +273,7 @@ shapefile %>%
 ```
 
 
-## Merging with scraped Beall's list
+### Merging with scraped Beall's list
 
 Seeing just [one match](http://journals.uniosun.edu.ng/){target="_blank"} from Africa for now, could be because the country variable needs to be cleaned further (currently includes US states being entered as countries etc.).
 
@@ -358,21 +284,10 @@ df_pred2 %>%
   count(continent, name = "count") %>% 
   arrange(-count) %>% 
   knitr::kable()
-
-# df_pred2 %>%
-#   inner_join(df, by = "issn") %>%
-#   drop_na(country) %>% 
-#   group_by(country) %>% 
-#   summarize(
-#     `OJSv2 Installations 'listed' as predatory` = sum(ojs_v2, na.rm = T),
-#     `OJSv3 Installations 'listed' as predatory` = sum(ojs_v3, na.rm = T)
-#   ) %>% 
-#   arrange(desc(`OJSv2 Installations 'listed' as predatory`)) %>% 
-#   datatable()
 ```
 
 
-## URLs to scrape
+### URLs to scrape for Africa
 
 ```{r}
 df %>%
@@ -382,3 +297,289 @@ df %>%
   datatable()
 ```
 
+## Global stats
+
+### Journals
+
+```{r}
+canada.states <- 
+  c("Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon")
+
+df_reduced <-
+  df %>%
+  drop_na(country) %>% 
+  mutate(
+    country = if_else(str_detect(country, "China"), "China", country),
+    country = if_else(str_detect(country, "England"), "United Kingdom", country),
+    country = if_else(str_detect(country, "Russia|Soviet Union"), "Russia", country),
+    country = if_else(str_detect(country, "Palestine"), "Palestine", country),
+    country = if_else(str_detect(country, "United States|New York"), "United States", country),
+    country = if_else(country %in% state.name, "United States", country),
+    country = if_else(country %in% canada.states, "Canada", country)
+  ) %>% 
+  group_by(country) %>% 
+  summarize(
+    ojs_v2 = sum(ojs_v2, na.rm = T),
+    ojs_v3 = sum(ojs_v3, na.rm = T),
+    #records = sum(total_record_count, na.rm = T)
+  ) %>% 
+  mutate(
+    total = ojs_v2 + ojs_v3
+  )
+
+df_reduced %>% 
+  arrange(-total) %>% 
+  datatable()
+```
+
+#### Total OJS journals
+
+```{r}
+labels <- function(x) {
+  if_else(x < 500, as.character(x), "500+")
+}
+
+shapefile %>% 
+  janitor::clean_names() %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+  ) %>% 
+  left_join(df_reduced, by = "country") %>% 
+  mutate(
+    total = replace_na(total, 0),
+    total = pmin(total, 500)
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = total), size = 0.3) +
+  scale_fill_gradientn(
+    breaks = seq(0, 500, 250),
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = labels
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Total OJS journals"
+  )
+```
+
+
+#### OJS v2 journals
+
+```{r}
+labels <- function(x) {
+  if_else(x < 200, as.character(x), "200+")
+}
+
+shapefile %>% 
+  janitor::clean_names() %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+  ) %>% 
+  left_join(df_reduced, by = "country") %>% 
+  mutate(
+    ojs_v2 = replace_na(ojs_v2, 0),
+    ojs_v2 = pmin(ojs_v2, 200)
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = ojs_v2), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = labels
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "OJS v2 journals"
+  )
+```
+
+
+#### OJS v3 journals
+
+```{r}
+labels <- function(x) {
+  if_else(x < 500, as.character(x), "500+")
+}
+
+shapefile %>% 
+  janitor::clean_names() %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+  ) %>% 
+  left_join(df_reduced, by = "country") %>% 
+  mutate(
+    ojs_v3 = replace_na(ojs_v3, 0),
+    ojs_v3 = pmin(ojs_v3, 500)
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = ojs_v3), size = 0.3) +
+  scale_fill_gradientn(
+    breaks = seq(0, 500, 250),
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = labels
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "OJS v3 journals"
+  )
+```
+
+### Installations
+
+```{r}
+df_reduced <-
+  df %>%
+  drop_na(country) %>% 
+  distinct(repository_name, .keep_all = T) %>% 
+  mutate(
+    country = if_else(str_detect(country, "China"), "China", country),
+    country = if_else(str_detect(country, "England"), "United Kingdom", country),
+    country = if_else(str_detect(country, "Russia|Soviet Union"), "Russia", country),
+    country = if_else(str_detect(country, "Palestine"), "Palestine", country),
+    country = if_else(str_detect(country, "United States|New York"), "United States", country),
+    country = if_else(country %in% state.name, "United States", country),
+    country = if_else(country %in% canada.states, "Canada", country)
+  ) %>% 
+  group_by(country) %>% 
+  summarize(
+    ojs_v2 = sum(ojs_v2, na.rm = T),
+    ojs_v3 = sum(ojs_v3, na.rm = T)
+  ) %>% 
+  mutate(
+    total = ojs_v2 + ojs_v3
+  )
+
+df_reduced %>% 
+  arrange(-total) %>% 
+  datatable()
+```
+
+#### Total OJS installations
+
+```{r}
+labels <- function(x) {
+  if_else(x < 100, as.character(x), "100+")
+}
+
+shapefile %>% 
+  janitor::clean_names() %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+  ) %>% 
+  left_join(df_reduced, by = "country") %>% 
+  mutate(
+    total = replace_na(total, 0),
+    total = pmin(total, 100)
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = total), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = labels
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "Total OJS installations"
+  )
+```
+
+
+#### OJS v2 installations
+
+```{r}
+labels <- function(x) {
+  if_else(x < 100, as.character(x), "100+")
+}
+
+shapefile %>% 
+  janitor::clean_names() %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+  ) %>% 
+  left_join(df_reduced, by = "country") %>% 
+  mutate(
+    ojs_v2 = replace_na(ojs_v2, 0),
+    ojs_v2 = pmin(ojs_v2, 100)
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = ojs_v2), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = labels
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "OJS v2 installations"
+  )
+```
+
+
+#### OJS v3 installations
+
+```{r}
+labels <- function(x) {
+  if_else(x < 100, as.character(x), "100+")
+}
+
+shapefile %>% 
+  janitor::clean_names() %>%
+  rename(country = name) %>% 
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+  ) %>% 
+  left_join(df_reduced, by = "country") %>% 
+  mutate(
+    ojs_v3 = replace_na(ojs_v3, 0),
+    ojs_v3 = pmin(ojs_v3, 100)
+  ) %>% 
+  ggplot() +
+  geom_sf(aes(fill = ojs_v3), size = 0.3) +
+  scale_fill_gradientn(
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = labels
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  labs(
+    fill = "OJS v3 installations"
+  )
+```
