@@ -334,7 +334,7 @@ df_reduced %>%
 
 #### Total OJS journals
 
-```{r}
+```{r, out.width="100%", out.height="100%"}
 labels <- function(x) {
   if_else(x < 500, as.character(x), "500+")
 }
@@ -372,7 +372,7 @@ shapefile %>%
 
 #### OJS v2 journals
 
-```{r}
+```{r, out.width="100%", out.height="100%"}
 labels <- function(x) {
   if_else(x < 200, as.character(x), "200+")
 }
@@ -409,7 +409,7 @@ shapefile %>%
 
 #### OJS v3 journals
 
-```{r}
+```{r, out.width="100%", out.height="100%"}
 labels <- function(x) {
   if_else(x < 500, as.character(x), "500+")
 }
@@ -446,7 +446,7 @@ shapefile %>%
 
 ### Installations
 
-```{r}
+```{r, out.width="100%", out.height="100%"}
 df_reduced <-
   df %>%
   drop_na(country) %>% 
@@ -476,7 +476,7 @@ df_reduced %>%
 
 #### Total OJS installations
 
-```{r}
+```{r, out.width="100%", out.height="100%"}
 labels <- function(x) {
   if_else(x < 100, as.character(x), "100+")
 }
@@ -513,7 +513,7 @@ shapefile %>%
 
 #### OJS v2 installations
 
-```{r}
+```{r, out.width="100%", out.height="100%"}
 labels <- function(x) {
   if_else(x < 100, as.character(x), "100+")
 }
@@ -550,7 +550,7 @@ shapefile %>%
 
 #### OJS v3 installations
 
-```{r}
+```{r, out.width="100%", out.height="100%"}
 labels <- function(x) {
   if_else(x < 100, as.character(x), "100+")
 }
