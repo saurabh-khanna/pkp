@@ -7,3 +7,5 @@
 *.docx
 *.pdf
 data/
+*.ipynb
+.ipynb_checkpoints/

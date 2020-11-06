@@ -24,7 +24,7 @@ Summary (ongoing):
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets, jsonlite, rgeolocate, urltools, lubridate, state)
+pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets, jsonlite, rgeolocate, urltools, lubridate, state, iptools)
 
 # Data
 df <- read_csv(here::here("data", "beacon.csv"))
@@ -79,9 +79,6 @@ df <-
       ojs_v3 ~ "Version 3",
       TRUE ~ "Other"
     )
-    #years = (earliest_datestamp %--% last_beacon) / dyears(1),
-    #records_per_year = total_record_count / years,
-    #active = records_per_year >= 5
   )
 
 continents <-
@@ -94,6 +91,23 @@ df <-
   bind_cols(continents) %>% 
   rename(continent = `...19`)
 ```
+
+
+```{r}
+#df %>% glimpse()
+#df %>% summarise_all(~ mean(is.na(.)) * 100)
+```
+
+
+```{r}
+df %>% 
+  filter(is.na(country)) %>% 
+  count(domain) %>%
+  drop_na(domain) %>% 
+  arrange(-n) %>% 
+  datatable()
+```
+
 
 
 ## Africa
@@ -115,6 +129,14 @@ df_reduced_africa <-
 df_reduced_africa %>% 
   arrange(-total) %>% 
   datatable()
+```
+Totals for each column:
+
+```{r}
+df_reduced_africa %>%
+  select(-country) %>% 
+  summarize_all(sum, na.rm = TRUE) %>% 
+  knitr::kable()
 ```
 
 #### OJS v2 journals
@@ -203,6 +225,15 @@ df_reduced_africa <-
 df_reduced_africa %>% 
   arrange(-total) %>% 
   datatable()
+```
+
+Totals for each column:
+
+```{r}
+df_reduced_africa %>%
+  select(-country) %>% 
+  summarize_all(sum, na.rm = TRUE) %>% 
+  knitr::kable()
 ```
 
 #### OJS v2 installations
@@ -331,6 +362,16 @@ df_reduced %>%
   arrange(-total) %>% 
   datatable()
 ```
+
+Totals for each column:
+
+```{r}
+df_reduced %>%
+  select(-country) %>% 
+  summarize_all(sum, na.rm = TRUE) %>% 
+  knitr::kable()
+```
+
 
 #### Total OJS journals
 
@@ -472,6 +513,15 @@ df_reduced <-
 df_reduced %>% 
   arrange(-total) %>% 
   datatable()
+```
+
+Totals for each column:
+
+```{r}
+df_reduced %>%
+  select(-country) %>% 
+  summarize_all(sum, na.rm = TRUE) %>% 
+  knitr::kable()
 ```
 
 #### Total OJS installations
