@@ -16,11 +16,13 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ## Summary (ongoing)
 
 + All
-  - Total OJS v2 journals found in Africa: 250
-  - Total OJS v2 installations found in Africa: 39
+- Total OJS v2 journals found in Africa: 255
+- Total OJS v2 installations found in Africa: 38
 + Active
-  - Total *active* OJS v2 journals found in Africa: 140
-  - Total *active* OJS v2 installations found in Africa: 27 
+- Total *active* OJS v2 journals found in Africa: 140
+- Total *active* OJS v2 installations found in Africa: 27 
+
+Total *active* journals worldwide (2017-19): 12178
 
 
 ```{r message=FALSE, warning=FALSE}
@@ -51,18 +53,23 @@ rm(df_act2017, df_act2018, df_act2019)
 ```
 
 
+```{r}
+# correcting some oai urls
+df <- df %>% mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url))
+df_act <- df_act %>% mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url))
+```
+
 
 ```{r}
-#df %>% distinct(oai_url) summarize_all(~ sum(is.na(.)))
 df <- 
   bind_cols(
     df,
     df %>% pull(oai_url) %>% domain() %>% tld_extract()
   ) %>% 
-  left_join(tld_from_ip, by = "domain") %>% 
+  left_join(tld_from_ip, by = "domain") %>%
   mutate(
     tld = if_else(!is.na(tld_from_ip), tld_from_ip, tld)
-  ) %>% 
+  ) %>%
   left_join(tld, by = "tld")
 
 df_act <- 
@@ -70,7 +77,7 @@ df_act <-
     df_act,
     df_act %>% pull(oai_url) %>% domain() %>% tld_extract()
   ) %>% 
-  left_join(tld_from_ip, by = "domain") %>% 
+  left_join(tld_from_ip, by = "domain") %>%
   mutate(
     tld = if_else(!is.na(tld_from_ip), tld_from_ip, tld)
   ) %>%
@@ -83,7 +90,7 @@ df_act <-
 df <-
   df %>% 
   mutate(
-    country = if_else(!is.na(country_clean), country_clean, country),
+    country = if_else(is.na(country), country_clean, country),
     ojs_v2 = str_detect(version, "^ojs2/2"),
     ojs_v3 = str_detect(version, "^ojs2/3"),
     version_clean = case_when(
@@ -106,7 +113,7 @@ df <-
 df_act <-
   df_act %>% 
   mutate(
-    country = if_else(!is.na(country_clean), country_clean, country),
+    country = if_else(is.na(country), country_clean, country),
     ojs_v2 = str_detect(version, "^ojs2/2"),
     ojs_v3 = str_detect(version, "^ojs2/3"),
     version_clean = case_when(
@@ -128,6 +135,30 @@ df_act <-
 ```
 
 
+```{r, eval = F}
+df %>% summarize_at(vars(contains("country")), ~ sum(is.na(.)))
+df_act %>% summarize_at(vars(contains("country")), ~ sum(is.na(.)))
+```
+
+```{r}
+# merging morocco and western sahara
+shapefile <-
+  shapefile %>% 
+  janitor::clean_names() %>% 
+  mutate(
+    name = if_else(name == "Western Sahara", "Morocco", name)
+  ) %>%
+  arrange(name) %>% 
+  group_by(name) %>% 
+  summarize(
+    geometry = st_union(geometry),
+    lat = first(lat),
+    lon = first(lon),
+    region = first(region)
+  )
+```
+
+
 ## Africa - All
 
 ### Journals
@@ -139,8 +170,7 @@ df_reduced_africa <-
   group_by(country) %>% 
   summarize(
     ojs_v2 = sum(ojs_v2, na.rm = T),
-    ojs_v3 = sum(ojs_v3, na.rm = T),
-    #records = sum(total_record_count, na.rm = T)
+    ojs_v3 = sum(ojs_v3, na.rm = T)
   ) %>% 
   mutate(total = ojs_v2 + ojs_v3)
 
@@ -237,8 +267,7 @@ df_reduced_africa <-
   group_by(country) %>% 
   summarize(
     ojs_v2 = sum(ojs_v2, na.rm = T),
-    ojs_v3 = sum(ojs_v3, na.rm = T),
-    #records = sum(total_record_count, na.rm = T)
+    ojs_v3 = sum(ojs_v3, na.rm = T)
   ) %>%
   mutate(total = ojs_v2 + ojs_v3)
 
@@ -273,7 +302,7 @@ shapefile %>%
   left_join(df_reduced_africa, by = "country") %>% 
   mutate(
     ojs_v3 = replace_na(ojs_v3, 0)
-  ) %>% 
+  ) %>%
   ggplot() +
   geom_sf(aes(fill = ojs_v3), size = 0.3) +
   ggrepel::geom_label_repel(
@@ -306,7 +335,7 @@ shapefile %>%
   left_join(df_reduced_africa, by = "country") %>%  
   mutate(
     ojs_v2 = replace_na(ojs_v2, 0)
-  ) %>% 
+  ) %>%
   ggplot() +
   geom_sf(aes(fill = ojs_v2), size = 0.3) +
   ggrepel::geom_label_repel(
@@ -315,6 +344,7 @@ shapefile %>%
     nudge_x = -8
   ) +
   scale_fill_gradientn(
+    breaks = seq(0, 15, 3),
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
   ) +
   theme_void() +
@@ -335,8 +365,7 @@ df_reduced_africa_act <-
   group_by(country) %>% 
   summarize(
     ojs_v2 = sum(ojs_v2, na.rm = T),
-    ojs_v3 = sum(ojs_v3, na.rm = T),
-    #records = sum(total_record_count, na.rm = T)
+    ojs_v3 = sum(ojs_v3, na.rm = T)
   ) %>% 
   mutate(total = ojs_v2 + ojs_v3)
 
@@ -433,8 +462,7 @@ df_reduced_africa_act <-
   group_by(country) %>% 
   summarize(
     ojs_v2 = sum(ojs_v2, na.rm = T),
-    ojs_v3 = sum(ojs_v3, na.rm = T),
-    #records = sum(total_record_count, na.rm = T)
+    ojs_v3 = sum(ojs_v3, na.rm = T)
   ) %>%
   mutate(total = ojs_v2 + ojs_v3)
 
@@ -511,6 +539,7 @@ shapefile %>%
     nudge_x = -8
   ) +
   scale_fill_gradientn(
+    breaks = seq(0, 10, 2),
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
   ) +
   theme_void() +
@@ -520,26 +549,24 @@ shapefile %>%
 ```
 
 
-## Journals per OJS v2 installation
+## Journals per OJS v2 installation in Africa
 
-### All
 
 ```{r}
 df %>%
   filter(continent == "Africa", ojs_v2) %>% 
-  count(country, domain, name = "count") %>% 
-  arrange(-count) %>% 
+  count(country, domain, name = "count_all") %>% 
+  left_join(
+    df_act %>%
+      filter(continent == "Africa", ojs_v2) %>% 
+      count(country, domain, name = "count_active"),
+    by = c("country", "domain")
+  ) %>%
+  mutate(
+    count_active = replace_na(count_active, 0),
+    dormant_journals = count_all - count_active
+  ) %>% 
+  rename(total_journals = count_all, active_journals = count_active, installation_domain = domain) %>% 
+  arrange(-total_journals) %>% 
   datatable()
 ```
-
-
-### Active
-
-```{r}
-df_act %>%
-  filter(continent == "Africa", ojs_v2) %>% 
-  count(country, domain, name = "count") %>% 
-  arrange(-count) %>% 
-  datatable()
-```
-
