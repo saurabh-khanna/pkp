@@ -1,3 +1,3 @@
-# CS 230
+# PKP
 
-Repository for work done on the [Public Knowledge Project](https://pkp.sfu.ca/)
+Repository for work done on the [Public Knowledge Project](https://pkp.sfu.ca/).
