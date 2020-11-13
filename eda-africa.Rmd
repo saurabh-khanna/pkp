@@ -27,7 +27,7 @@ Total *active* journals worldwide (2017-19): 12178
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets, jsonlite, rgeolocate, urltools, lubridate, state, iptools, janitor)
+pacman::p_load(tidyverse, countrycode, sf, DT, htmltools, htmlwidgets, jsonlite, rgeolocate, urltools, lubridate, janitor, plotly)
 
 # Data
 df <- read_csv(here::here("data", "beacon.csv"))
@@ -155,7 +155,8 @@ shapefile <-
     lat = first(lat),
     lon = first(lon),
     region = first(region)
-  )
+  ) %>% 
+  st_cast("MULTIPOLYGON")
 ```
 
 
@@ -192,7 +193,8 @@ df_reduced_africa %>%
 #### OJS v3 journals
 
 ```{r}
-shapefile %>% 
+plot <-
+  shapefile %>% 
   janitor::clean_names() %>% 
   filter(region == 2) %>%
   rename(country = name) %>% 
@@ -207,26 +209,24 @@ shapefile %>%
     ojs_v3 = replace_na(ojs_v3, 0)
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = ojs_v3), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(ojs_v3 >= 3),
-    aes(lon, lat, label = ojs_v3),
-    nudge_x = -8
-  ) +
+  geom_sf(aes(text = country, fill = ojs_v3), size = 0.3) +
   scale_fill_gradientn(
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
   ) +
-  theme_void() +
+  theme_minimal() +
   labs(
     fill = "OJS v3 journals"
   )
+
+ggplotly(plot)
 ```
 
 
 #### OJS v2 journals
 
 ```{r}
-shapefile %>% 
+plot <-
+  shapefile %>% 
   janitor::clean_names() %>% 
   filter(region == 2) %>%
   rename(country = name) %>% 
@@ -241,19 +241,16 @@ shapefile %>%
     ojs_v2 = replace_na(ojs_v2, 0)
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = ojs_v2), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(ojs_v2 > 0),
-    aes(lon, lat, label = ojs_v2),
-    nudge_x = -8
-  ) +
+  geom_sf(aes(text = country, fill = ojs_v2), size = 0.3) +
   scale_fill_gradientn(
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
   ) +
-  theme_void() +
+  theme_minimal() +
   labs(
     fill = "OJS v2 journals"
   )
+
+ggplotly(plot)
 ```
 
 
@@ -289,7 +286,8 @@ df_reduced_africa %>%
 #### OJS v3 installations
 
 ```{r}
-shapefile %>% 
+plot <-
+  shapefile %>% 
   janitor::clean_names() %>% 
   filter(region == 2) %>%
   rename(country = name) %>% 
@@ -304,25 +302,23 @@ shapefile %>%
     ojs_v3 = replace_na(ojs_v3, 0)
   ) %>%
   ggplot() +
-  geom_sf(aes(fill = ojs_v3), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(ojs_v3 >= 3),
-    aes(lon, lat, label = ojs_v3),
-    nudge_x = -8
-  ) +
+  geom_sf(aes(text = country, fill = ojs_v3), size = 0.3) +
   scale_fill_gradientn(
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
   ) +
-  theme_void() +
+  theme_minimal() +
   labs(
     fill = "OJS v3 installations"
   )
+
+ggplotly(plot)
 ```
 
 #### OJS v2 installations
 
 ```{r}
-shapefile %>% 
+plot <-
+  shapefile %>% 
   janitor::clean_names() %>% 
   filter(region == 2) %>%
   rename(country = name) %>% 
@@ -337,20 +333,17 @@ shapefile %>%
     ojs_v2 = replace_na(ojs_v2, 0)
   ) %>%
   ggplot() +
-  geom_sf(aes(fill = ojs_v2), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(ojs_v2 > 0),
-    aes(lon, lat, label = ojs_v2),
-    nudge_x = -8
-  ) +
+  geom_sf(aes(text = country, fill = ojs_v2), size = 0.3) +
   scale_fill_gradientn(
     breaks = seq(0, 15, 3),
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
   ) +
-  theme_void() +
+  theme_minimal() +
   labs(
     fill = "OJS v2 installations"
   )
+
+ggplotly(plot)
 ```
 
 
@@ -387,7 +380,8 @@ df_reduced_africa_act %>%
 #### OJS v3 journals
 
 ```{r}
-shapefile %>% 
+plot <-
+  shapefile %>% 
   janitor::clean_names() %>% 
   filter(region == 2) %>%
   rename(country = name) %>% 
@@ -402,26 +396,24 @@ shapefile %>%
     ojs_v3 = replace_na(ojs_v3, 0)
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = ojs_v3), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(ojs_v3 >= 3),
-    aes(lon, lat, label = ojs_v3),
-    nudge_x = -8
-  ) +
+  geom_sf(aes(text = country, fill = ojs_v3), size = 0.3) +
   scale_fill_gradientn(
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
   ) +
-  theme_void() +
+  theme_minimal() +
   labs(
     fill = "OJS v3 active\njournals"
   )
+
+ggplotly(plot)
 ```
 
 
 #### OJS v2 journals
 
 ```{r}
-shapefile %>% 
+plot <-
+  shapefile %>% 
   janitor::clean_names() %>% 
   filter(region == 2) %>%
   rename(country = name) %>% 
@@ -436,19 +428,16 @@ shapefile %>%
     ojs_v2 = replace_na(ojs_v2, 0)
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = ojs_v2), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(ojs_v2 > 0),
-    aes(lon, lat, label = ojs_v2),
-    nudge_x = -8
-  ) +
+  geom_sf(aes(text = country, fill = ojs_v2), size = 0.3) +
   scale_fill_gradientn(
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
   ) +
-  theme_void() +
+  theme_minimal() +
   labs(
     fill = "OJS v2 active\njournals"
   )
+
+ggplotly(plot)
 ```
 
 
@@ -484,7 +473,8 @@ df_reduced_africa_act %>%
 #### OJS v3 installations
 
 ```{r}
-shapefile %>% 
+plot <-
+  shapefile %>% 
   janitor::clean_names() %>% 
   filter(region == 2) %>%
   rename(country = name) %>% 
@@ -499,25 +489,23 @@ shapefile %>%
     ojs_v3 = replace_na(ojs_v3, 0)
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = ojs_v3), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(ojs_v3 >= 1),
-    aes(lon, lat, label = ojs_v3),
-    nudge_x = -8
-  ) +
+  geom_sf(aes(text = country, fill = ojs_v3), size = 0.3) +
   scale_fill_gradientn(
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
   ) +
-  theme_void() +
+  theme_minimal() +
   labs(
     fill = "OJS v3 active\ninstallations"
   )
+
+ggplotly(plot)
 ```
 
 #### OJS v2 installations
 
 ```{r}
-shapefile %>% 
+plot <-
+  shapefile %>% 
   janitor::clean_names() %>% 
   filter(region == 2) %>%
   rename(country = name) %>% 
@@ -532,20 +520,17 @@ shapefile %>%
     ojs_v2 = replace_na(ojs_v2, 0)
   ) %>% 
   ggplot() +
-  geom_sf(aes(fill = as.integer(ojs_v2)), size = 0.3) +
-  ggrepel::geom_label_repel(
-    data = . %>% filter(ojs_v2 > 0),
-    aes(lon, lat, label = ojs_v2),
-    nudge_x = -8
-  ) +
+  geom_sf(aes(fill = ojs_v2), size = 0.3) +
   scale_fill_gradientn(
     breaks = seq(0, 10, 2),
     colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
   ) +
-  theme_void() +
+  theme_minimal() +
   labs(
     fill = "OJS v2 active\ninstallations"
   )
+
+ggplotly(plot)
 ```
 
 
