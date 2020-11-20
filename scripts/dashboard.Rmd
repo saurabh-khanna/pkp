@@ -1,0 +1,347 @@
+---
+title: "OJS Usage Statistics"
+author: "Saurabh Khanna"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+# knitr options
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina = 4)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# Libraries
+pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, lubridate, janitor, plotly)
+
+# Data
+df <- read_csv(here::here("data", "beacon.csv"))
+shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
+tld <- read_csv(here::here("data", "tld-country.csv"))
+tld_from_ip <- read_csv(here::here("data", "tld_from_ip.csv"))
+df_act2019 <- read_csv(here::here("data/active", "beacon-2019.csv")) %>% select(oai_url, version, repository_name, issn, country, set_spec)
+df_act2018 <- read_csv(here::here("data/active", "beacon-2018.csv")) %>% select(oai_url, version, repository_name, issn, country, set_spec)
+df_act2017 <- read_csv(here::here("data/active", "beacon-2017.csv")) %>% select(oai_url, version, repository_name, issn, country, set_spec)
+df_act <-
+  bind_rows(
+    df_act2017, df_act2018, df_act2019,
+    .id = "year"
+  ) %>% 
+  mutate(
+    year = as.integer(year) + 2016L
+  ) %>% 
+  arrange(desc(year), oai_url, version, repository_name, issn, country, set_spec) %>% 
+  distinct(oai_url, version, repository_name, issn, country, set_spec, .keep_all = T)
+
+canada.states <- 
+  c("Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon")
+
+rm(df_act2017, df_act2018, df_act2019)
+```
+
+
+```{r}
+# correcting some oai urls
+df <- df %>% mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url))
+df_act <- df_act %>% mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url))
+```
+
+
+```{r}
+df <- 
+  bind_cols(
+    df,
+    df %>% pull(oai_url) %>% domain() %>% tld_extract()
+  ) %>% 
+  left_join(tld_from_ip, by = "domain") %>%
+  mutate(
+    tld = if_else(!is.na(tld_from_ip), tld_from_ip, tld)
+  ) %>%
+  left_join(tld, by = "tld")
+
+df_act <- 
+  bind_cols(
+    df_act,
+    df_act %>% pull(oai_url) %>% domain() %>% tld_extract()
+  ) %>% 
+  left_join(tld_from_ip, by = "domain") %>%
+  mutate(
+    tld = if_else(!is.na(tld_from_ip), tld_from_ip, tld)
+  ) %>%
+  left_join(tld, by = "tld")
+```
+
+
+```{r}
+# Mapping countries to continents
+df <-
+  df %>% 
+  mutate(
+    country = if_else(is.na(country), country_clean, country),
+    ojs_v2 = str_detect(version, "^ojs2/2"),
+    ojs_v3 = str_detect(version, "^ojs2/3"),
+    version_clean = case_when(
+      ojs_v2 ~ "Version 2",
+      ojs_v3 ~ "Version 3",
+      TRUE ~ "Other"
+    )
+  ) %>% 
+  mutate(
+    country = if_else(str_detect(country, "China"), "China", country),
+    country = if_else(str_detect(country, "Armenia"), "Armenia", country),
+    country = if_else(str_detect(country, "Georgia"), "Georgia", country),
+    country = if_else(str_detect(country, "Australia|New South Wales|Queensland|Victoria"), "Australia", country),
+    country = if_else(str_detect(country, "England"), "United Kingdom", country),
+    country = if_else(str_detect(country, "Russia|Soviet Union"), "Russia", country),
+    country = if_else(str_detect(country, "Palestine"), "Palestine", country),
+    country = if_else(country == "Korea (South)", "South Korea", country),
+    country = if_else(country == "Washington (State)", "United States", country),
+    country = if_else(str_detect(country, "United States|New York|District of Columbia"), "United States", country),
+    country = if_else(country %in% state.name, "United States", country),
+    country = if_else(country %in% canada.states, "Canada", country)
+  )
+
+continents <-
+  df %>%
+  pull(country) %>% 
+  countrycode(origin = "country.name", destination = "continent")
+
+df <- 
+  df %>%
+  bind_cols(continents) %>% 
+  rename(continent = `...22`)
+
+df_act <-
+  df_act %>% 
+  mutate(
+    country = if_else(is.na(country), country_clean, country),
+    ojs_v2 = str_detect(version, "^ojs2/2"),
+    ojs_v3 = str_detect(version, "^ojs2/3"),
+    version_clean = case_when(
+      ojs_v2 ~ "Version 2",
+      ojs_v3 ~ "Version 3",
+      TRUE ~ "Other"
+    )
+  ) %>% 
+  mutate(
+    country = if_else(str_detect(country, "China"), "China", country),
+    country = if_else(str_detect(country, "Armenia"), "Armenia", country),
+    country = if_else(str_detect(country, "Georgia"), "Georgia", country),
+    country = if_else(str_detect(country, "Australia|New South Wales|Queensland|Victoria"), "Australia", country),
+    country = if_else(str_detect(country, "England"), "United Kingdom", country),
+    country = if_else(str_detect(country, "Russia|Soviet Union"), "Russia", country),
+    country = if_else(str_detect(country, "Palestine"), "Palestine", country),
+    country = if_else(country == "Korea (South)", "South Korea", country),
+    country = if_else(country == "Washington (State)", "United States", country),
+    country = if_else(str_detect(country, "United States|New York|District of Columbia"), "United States", country),
+    country = if_else(country %in% state.name, "United States", country),
+    country = if_else(country %in% canada.states, "Canada", country)
+  )
+
+continents <-
+  df_act %>% 
+  pull(country) %>% 
+  countrycode(origin = "country.name", destination = "continent")
+
+df_act <- 
+  df_act %>%
+  bind_cols(continents) %>% 
+  rename(continent = `...15`)
+
+rm(tld, tld_from_ip)
+
+# merging morocco and western sahara
+shapefile <-
+  shapefile %>% 
+  janitor::clean_names() %>% 
+  mutate(
+    name = if_else(name == "Western Sahara", "Morocco", name)
+  ) %>%
+  arrange(name) %>% 
+  group_by(name) %>% 
+  summarize(
+    geometry = st_union(geometry),
+    lat = first(lat),
+    lon = first(lon),
+    region = first(region)
+  ) %>% 
+  st_cast("MULTIPOLYGON")
+```
+
+
+```{r}
+# creating grouped dfs
+df_world <-
+  df %>%
+  drop_na(country) %>%   
+  group_by(country, continent) %>% 
+  summarize(
+    ojs_v2 = sum(ojs_v2, na.rm = T),
+    ojs_v3 = sum(ojs_v3, na.rm = T)
+  ) %>% 
+  ungroup() %>% 
+  transmute(
+    country,
+    continent,
+    ojs_v2,
+    ojs_v3,
+    total = ojs_v2 + ojs_v3
+  )
+
+df_world_act <-
+  df_act %>%
+  drop_na(country) %>% 
+  group_by(country) %>% 
+  summarize(
+    ojs_v2_active = sum(ojs_v2, na.rm = T),
+    ojs_v3_active = sum(ojs_v3, na.rm = T)
+  ) %>% 
+  transmute(
+    country, 
+    ojs_v2_active,
+    ojs_v3_active,
+    total_active = ojs_v2_active + ojs_v3_active
+  )
+
+df_world <-
+  df_world %>% 
+  left_join(df_world_act, by = "country") %>% 
+  mutate(
+    total = replace_na(total, 0),
+    total_active = replace_na(total_active, 0),
+    ojs_v2 = replace_na(ojs_v2, 0),
+    ojs_v2_active = replace_na(ojs_v2_active, 0),
+    ojs_v3 = replace_na(ojs_v3, 0),
+    ojs_v3_active = replace_na(ojs_v3_active, 0)
+  )
+```
+
+
+## World
+
+Total journals: 26,374
+
+Total active journals: 11,572
+
+```{r, out.width="100%"}
+plot <-
+  shapefile %>% 
+  janitor::clean_names() %>%
+  rename(country = name) %>%
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+  ) %>%
+  left_join(df_world, by = "country") %>% 
+  filter(country != "Antarctica") %>% 
+  mutate(
+    total = replace_na(total, 0),
+    total_active = replace_na(total_active, 0),
+    subtext = str_c("OJS Total: ", total, " (", total_active, " active)"),
+    hover_text = str_c(country, subtext, sep = "\n"),
+    total_active = pmin(total_active, 500)
+  ) %>%
+  ggplot() +
+  geom_sf(aes(fill = total_active, text = hover_text), size = 0.3, show.legend = FALSE) +
+  scale_fill_gradientn(
+    breaks = seq(0, 500, 250),
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd")
+  ) +
+  theme_minimal()
+
+ggplotly(plot, tooltip = "hover_text") %>% 
+  layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE))
+```
+
+```{r}
+df_world %>% 
+  arrange(-total_active) %>% 
+  select(country, ojs_total = total, ojs_total_active = total_active) %>% 
+  DT::datatable()
+```
+
+Totals for each column:
+
+```{r}
+df_world %>% 
+  select(ojs_total = total, ojs_total_active = total_active) %>% 
+  summarize_all(sum, na.rm = TRUE) %>% 
+  knitr::kable()
+```
+
+## Africa
+
+Total journals: 759 (516 OJSv3 + 243 OJSv2)
+
+Total active journals: 295 (155 OJSv3 + 140 OJSv2)
+
+
+```{r, out.width="100%"}
+plot <-
+  shapefile %>% 
+  janitor::clean_names() %>%
+  rename(country = name) %>%
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+  ) %>%
+  filter(region == 2) %>% 
+  left_join(df_world, by = "country") %>% 
+  filter(country != "Antarctica") %>% 
+  mutate(
+    total = replace_na(total, 0),
+    total_active = replace_na(total_active, 0),
+    ojs_v2 = replace_na(ojs_v2, 0),
+    ojs_v2_active = replace_na(ojs_v2_active, 0),
+    ojs_v3 = replace_na(ojs_v3, 0),
+    ojs_v3_active = replace_na(ojs_v3_active, 0),
+    subtext1 = str_c("OJS Total: ", total, " (", total_active, " active)"),
+    subtext2 = str_c("OJS v2: ", ojs_v2, " (", ojs_v2_active, " active)"),
+    subtext3 = str_c("OJS v3: ", ojs_v3, " (", ojs_v3_active, " active)"),
+    hover_text = str_c(country, subtext1, subtext3, subtext2, sep = "\n"),
+    total_active = pmin(total_active, 20)
+  ) %>%
+  ggplot() +
+  geom_sf(aes(fill = total_active, text = hover_text), size = 0.3, show.legend = FALSE) +
+  scale_fill_gradientn(
+    breaks = seq(0, 5, 20),
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = labels
+  ) +
+  theme_minimal()
+
+ggplotly(plot, tooltip = "hover_text") %>% 
+  layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE))
+```
+
+
+```{r}
+df_world %>% 
+  filter(continent == "Africa") %>% 
+  arrange(-total_active) %>% 
+  select(country, ojs_total = total, ojs_total_active = total_active, ojs_v3, ojs_v3_active, ojs_v2, ojs_v2_active) %>% 
+  DT::datatable()
+```
+
+
+Totals for each column:
+
+```{r}
+df_world %>% 
+  filter(continent == "Africa") %>% 
+  select(ojs_total = total, ojs_total_active = total_active, ojs_v3, ojs_v3_active, ojs_v2, ojs_v2_active) %>% 
+  summarize_all(sum, na.rm = TRUE) %>% 
+  knitr::kable()
+```
+
