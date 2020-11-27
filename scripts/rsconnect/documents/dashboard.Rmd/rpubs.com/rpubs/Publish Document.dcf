@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/693609/1bde213ef41346279ebac04b8fab3db1
+bundleId: https://api.rpubs.com/api/v1/document/693609/1bde213ef41346279ebac04b8fab3db1
+url: http://rpubs.com/saurabh90/693609
+when: 1606507706.88502

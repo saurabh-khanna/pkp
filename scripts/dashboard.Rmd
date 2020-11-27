@@ -1,11 +1,18 @@
 ---
-title: "OJS Usage Statistics"
-author: "Saurabh Khanna"
-date: "`r Sys.Date()`"
+title: "Global Use of OJS, 2017-19"
+subtitle: "Active journals (at least 5 records/year) using OJS: 2017, 2018 or 2019"
+#author: "Saurabh Khanna"
+date: "Updated: `r Sys.Date()`"
 output: 
   html_document:
-    toc: true
+    toc: false
 ---
+
+---
+
+Total count: 11,572 active journals
+
+--- 
 
 ```{r setup, include=FALSE}
 # knitr options
@@ -220,12 +227,6 @@ df_world <-
 ```
 
 
-## World
-
-Total journals: 26,374
-
-Total active journals: 11,572
-
 ```{r, out.width="100%"}
 plot <-
   shapefile %>% 
@@ -244,7 +245,7 @@ plot <-
   mutate(
     total = replace_na(total, 0),
     total_active = replace_na(total_active, 0),
-    subtext = str_c("OJS Total: ", total, " (", total_active, " active)"),
+    subtext = str_c(total_active, " journals"),
     hover_text = str_c(country, subtext, sep = "\n"),
     total_active = pmin(total_active, 500)
   ) %>%
@@ -260,88 +261,11 @@ ggplotly(plot, tooltip = "hover_text") %>%
   layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE))
 ```
 
+
 ```{r}
 df_world %>% 
   arrange(-total_active) %>% 
-  select(country, ojs_total = total, ojs_total_active = total_active) %>% 
+  select(Country = country, `OJS Total Active` = total_active) %>% 
   DT::datatable()
-```
-
-Totals for each column:
-
-```{r}
-df_world %>% 
-  select(ojs_total = total, ojs_total_active = total_active) %>% 
-  summarize_all(sum, na.rm = TRUE) %>% 
-  knitr::kable()
-```
-
-## Africa
-
-Total journals: 759 (516 OJSv3 + 243 OJSv2)
-
-Total active journals: 295 (155 OJSv3 + 140 OJSv2)
-
-
-```{r, out.width="100%"}
-plot <-
-  shapefile %>% 
-  janitor::clean_names() %>%
-  rename(country = name) %>%
-  mutate(
-    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
-    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
-    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
-    country = if_else(country == "Congo", "Republic of the Congo", country),
-    country = if_else(country == "Viet Nam", "Vietnam", country),
-    country = if_else(str_detect(country, "Iran"), "Iran", country),
-  ) %>%
-  filter(region == 2) %>% 
-  left_join(df_world, by = "country") %>% 
-  filter(country != "Antarctica") %>% 
-  mutate(
-    total = replace_na(total, 0),
-    total_active = replace_na(total_active, 0),
-    ojs_v2 = replace_na(ojs_v2, 0),
-    ojs_v2_active = replace_na(ojs_v2_active, 0),
-    ojs_v3 = replace_na(ojs_v3, 0),
-    ojs_v3_active = replace_na(ojs_v3_active, 0),
-    subtext1 = str_c("OJS Total: ", total, " (", total_active, " active)"),
-    subtext2 = str_c("OJS v2: ", ojs_v2, " (", ojs_v2_active, " active)"),
-    subtext3 = str_c("OJS v3: ", ojs_v3, " (", ojs_v3_active, " active)"),
-    hover_text = str_c(country, subtext1, subtext3, subtext2, sep = "\n"),
-    total_active = pmin(total_active, 20)
-  ) %>%
-  ggplot() +
-  geom_sf(aes(fill = total_active, text = hover_text), size = 0.3, show.legend = FALSE) +
-  scale_fill_gradientn(
-    breaks = seq(0, 5, 20),
-    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
-    labels = labels
-  ) +
-  theme_minimal()
-
-ggplotly(plot, tooltip = "hover_text") %>% 
-  layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE))
-```
-
-
-```{r}
-df_world %>% 
-  filter(continent == "Africa") %>% 
-  arrange(-total_active) %>% 
-  select(country, ojs_total = total, ojs_total_active = total_active, ojs_v3, ojs_v3_active, ojs_v2, ojs_v2_active) %>% 
-  DT::datatable()
-```
-
-
-Totals for each column:
-
-```{r}
-df_world %>% 
-  filter(continent == "Africa") %>% 
-  select(ojs_total = total, ojs_total_active = total_active, ojs_v3, ojs_v3_active, ojs_v2, ojs_v2_active) %>% 
-  summarize_all(sum, na.rm = TRUE) %>% 
-  knitr::kable()
 ```
 
