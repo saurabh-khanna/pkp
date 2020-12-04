@@ -239,6 +239,9 @@ plot <-
     country = if_else(country == "Congo", "Republic of the Congo", country),
     country = if_else(country == "Viet Nam", "Vietnam", country),
     country = if_else(str_detect(country, "Iran"), "Iran", country),
+    country = if_else(str_detect(country, "Korea, Republic of"), "South Korea", country),
+    country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
+    country = if_else(str_detect(country, "Surinam"), "Surinam", country)
   ) %>%
   left_join(df_world, by = "country") %>% 
   filter(country != "Antarctica") %>% 
@@ -263,9 +266,17 @@ ggplotly(plot, tooltip = "hover_text") %>%
 
 
 ```{r}
+#df_world %>% write_csv(here::here("data/ojs_country_totals.csv"))
 df_world %>% 
   arrange(-total_active) %>% 
   select(Country = country, `OJS Total Active` = total_active) %>% 
   DT::datatable()
 ```
 
+
+
+<br/>
+
+---
+
+<small><b>1</b> The `hover` in interactive maps works along country borders instead of within country regions. When 2 countries share a border, the `hover` shows the country with more active journals.</small>

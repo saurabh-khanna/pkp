@@ -1,11 +1,11 @@
 ---
-title: "Global Use of OJS by Version, 2017-19"
-subtitle: "Active journals using OJS (at least 5 records/year): 2017, 2018 or 2019"
-author: "Saurabh Khanna"
+title: "OJS Research Dashboard"
+#author: "Saurabh Khanna"
 date: "Updated: `r Sys.Date()`"
 output: 
   html_document:
     toc: true
+    toc_depth: 4
 ---
 
 ```{r setup, include=FALSE}
@@ -157,7 +157,7 @@ rm(tld, tld_from_ip)
 # merging morocco and western sahara
 shapefile <-
   shapefile %>% 
-  janitor::clean_names() %>% 
+  clean_names() %>% 
   mutate(
     name = if_else(name == "Western Sahara", "Morocco", name)
   ) %>%
@@ -167,10 +167,12 @@ shapefile <-
     geometry = st_union(geometry),
     lat = first(lat),
     lon = first(lon),
-    region = first(region)
+    region = first(region),
+    subregion = first(subregion)
   ) %>% 
   st_cast("MULTIPOLYGON")
 ```
+
 
 
 ```{r}
@@ -213,19 +215,67 @@ df_world <-
   mutate(
     total = replace_na(total, 0),
     total_active = replace_na(total_active, 0),
+    total = if_else(total < total_active, total_active, total),
     ojs_v2 = replace_na(ojs_v2, 0),
     ojs_v2_active = replace_na(ojs_v2_active, 0),
+    ojs_v2 = if_else(ojs_v2 < ojs_v2_active, ojs_v2_active, ojs_v2),
     ojs_v3 = replace_na(ojs_v3, 0),
-    ojs_v3_active = replace_na(ojs_v3_active, 0)
+    ojs_v3_active = replace_na(ojs_v3_active, 0),
+    ojs_v3 = if_else(ojs_v3 < ojs_v3_active, ojs_v3_active, ojs_v3)
   )
+
+rm(df_world_act)
 ```
 
 
-## World
+```{r}
+# creating installation df
+df_world_install <-
+  df %>%
+  drop_na(country) %>%   
+  group_by(country, continent, domain) %>% 
+  summarize(ojs_v2 = sum(ojs_v2, na.rm = T)) %>% 
+  ungroup()
 
-Total journals: 26,374
+df_world_install_act <-
+  df_act %>%
+  drop_na(country) %>%   
+  group_by(country, domain) %>% 
+  summarize(ojs_v2_active = sum(ojs_v2, na.rm = T)) %>% 
+  ungroup()
 
-Total active journals: 11,572
+
+df_world_install <-
+  df_world_install %>% 
+  left_join(df_world_install_act, by = c("country", "domain")) %>% 
+  mutate(
+    ojs_v2 = replace_na(ojs_v2, 0),
+    ojs_v2_active = replace_na(ojs_v2_active, 0),
+    ojs_v2 = if_else(ojs_v2 < ojs_v2_active, ojs_v2_active, ojs_v2)
+  )
+
+rm(df_world_install_act)
+```
+
+
+---
+
+### Global Use of OJS by Version, 2017-19
+**Active journals using OJS (5 records/year): 2017, 2018 or 2019**
+
+Total count: 11,572 active (26,374 present)
+
+OJS 3: 7,425 active (18,741 present)
+
+OJS 2: 4,147 active (7,633 present)
+
+```{r, eval = F}
+# totals
+df_world %>% 
+  select(ojs_total_active = total_active, ojs_total = total, ojs_v3_active, ojs_v3, ojs_v2_active, ojs_v2) %>% 
+  summarize_all(sum, na.rm = TRUE)
+```
+
 
 ```{r, out.width="100%"}
 plot <-
@@ -239,14 +289,23 @@ plot <-
     country = if_else(country == "Congo", "Republic of the Congo", country),
     country = if_else(country == "Viet Nam", "Vietnam", country),
     country = if_else(str_detect(country, "Iran"), "Iran", country),
+    country = if_else(str_detect(country, "Korea, Republic of"), "South Korea", country),
+    country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
+    country = if_else(str_detect(country, "Surinam"), "Surinam", country)
   ) %>%
   left_join(df_world, by = "country") %>% 
   filter(country != "Antarctica") %>% 
   mutate(
     total = replace_na(total, 0),
     total_active = replace_na(total_active, 0),
-    subtext = str_c("OJS Total: ", total, " (", total_active, " active)"),
-    hover_text = str_c(country, subtext, sep = "\n"),
+    ojs_v2 = replace_na(ojs_v2, 0),
+    ojs_v2_active = replace_na(ojs_v2_active, 0),
+    ojs_v3 = replace_na(ojs_v3, 0),
+    ojs_v3_active = replace_na(ojs_v3_active, 0),
+    subtext1 = str_c("Journals: ", total_active, " active (", total, " present)"),
+    subtext2 = str_c("V3: ", ojs_v3_active, " active (", ojs_v3, " present)"),
+    subtext3 = str_c("V2: ", ojs_v2_active, " active (", ojs_v2, " present)"),
+    hover_text = str_c(country, subtext1, subtext2, subtext3, sep = "\n"),
     total_active = pmin(total_active, 500)
   ) %>%
   ggplot() +
@@ -258,30 +317,38 @@ plot <-
   theme_minimal()
 
 ggplotly(plot, tooltip = "hover_text") %>% 
-  layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE))
+  layout(
+    xaxis = list(autorange = TRUE), 
+    yaxis = list(autorange = TRUE)
+  )
 ```
 
 ```{r}
 df_world %>% 
   arrange(-total_active) %>% 
-  select(country, ojs_total = total, ojs_total_active = total_active) %>% 
+  select(Country = country, Active = total_active, Present = total, `V3 active` = ojs_v3_active, `V3 present` = ojs_v3, `V2 active` = ojs_v2_active, `V2 present` = ojs_v2) %>% 
   DT::datatable()
 ```
 
-Totals for each column:
 
-```{r}
+---
+
+### African Use of OJS by Version, 2017-19
+**Active journals using OJS (5 records/year): 2017, 2018 or 2019**
+
+Total count: 295 active (759 present)
+
+OJS 3: 155 active (516 present)
+
+OJS 2: 140 active (243 present)
+
+```{r, eval = F}
+# totals
 df_world %>% 
-  select(ojs_total = total, ojs_total_active = total_active) %>% 
-  summarize_all(sum, na.rm = TRUE) %>% 
-  knitr::kable()
+  filter(continent == "Africa") %>% 
+  select(ojs_total_active = total_active, ojs_total = total, ojs_v3_active, ojs_v3, ojs_v2_active, ojs_v2) %>% 
+  summarize_all(sum, na.rm = TRUE)
 ```
-
-## Africa
-
-Total journals: 759 (516 OJSv3 + 243 OJSv2)
-
-Total active journals: 295 (155 OJSv3 + 140 OJSv2)
 
 
 ```{r, out.width="100%"}
@@ -296,10 +363,12 @@ plot <-
     country = if_else(country == "Congo", "Republic of the Congo", country),
     country = if_else(country == "Viet Nam", "Vietnam", country),
     country = if_else(str_detect(country, "Iran"), "Iran", country),
+    country = if_else(str_detect(country, "Korea, Republic of"), "South Korea", country),
+    country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
+    country = if_else(str_detect(country, "Surinam"), "Surinam", country)
   ) %>%
   filter(region == 2) %>% 
   left_join(df_world, by = "country") %>% 
-  filter(country != "Antarctica") %>% 
   mutate(
     total = replace_na(total, 0),
     total_active = replace_na(total_active, 0),
@@ -307,10 +376,10 @@ plot <-
     ojs_v2_active = replace_na(ojs_v2_active, 0),
     ojs_v3 = replace_na(ojs_v3, 0),
     ojs_v3_active = replace_na(ojs_v3_active, 0),
-    subtext1 = str_c("OJS Total: ", total, " (", total_active, " active)"),
-    subtext2 = str_c("OJS v2: ", ojs_v2, " (", ojs_v2_active, " active)"),
-    subtext3 = str_c("OJS v3: ", ojs_v3, " (", ojs_v3_active, " active)"),
-    hover_text = str_c(country, subtext1, subtext3, subtext2, sep = "\n"),
+    subtext1 = str_c("Journals: ", total_active, " active (", total, " present)"),
+    subtext2 = str_c("V3: ", ojs_v3_active, " active (", ojs_v3, " present)"),
+    subtext3 = str_c("V2: ", ojs_v2_active, " active (", ojs_v2, " present)"),
+    hover_text = str_c(country, subtext1, subtext2, subtext3, sep = "\n"),
     total_active = pmin(total_active, 20)
   ) %>%
   ggplot() +
@@ -331,18 +400,109 @@ ggplotly(plot, tooltip = "hover_text") %>%
 df_world %>% 
   filter(continent == "Africa") %>% 
   arrange(-total_active) %>% 
-  select(country, ojs_total = total, ojs_total_active = total_active, ojs_v3, ojs_v3_active, ojs_v2, ojs_v2_active) %>% 
+  select(Country = country, Active = total_active, Present = total, `V3 active` = ojs_v3_active, `V3 present` = ojs_v3, `V2 active` = ojs_v2_active, `V2 present` = ojs_v2) %>% 
   DT::datatable()
 ```
 
+#### OJS Version 2 installation URLs in Africa by number of active and present journals
 
-Totals for each column:
+```{r}
+df_world_install %>% 
+  filter(continent == "Africa", ojs_v2 > 0) %>% 
+  arrange(country, desc(ojs_v2_active)) %>% 
+  mutate(domain = str_c('<a href="http://', domain, '" target="_blank">', domain, '</a>')) %>% 
+  select(Country = country, `V2 installation URL` = domain, `V2 active` = ojs_v2_active, `V2 present` = ojs_v2) %>% 
+  DT::datatable(escape = F)
+```
+
+---
+
+### Latin American Use of OJS by Version, 2017-19
+**Active journals using OJS (5 records/year): 2017, 2018 or 2019**
+
+Total count: 2,691 active (4,826 present)
+
+OJS 3: 1,770 active (3,544 present)
+
+OJS 2: 921 active (1,282 present)
+
+```{r, eval = F}
+# totals
+df_world %>%
+  filter(continent == "Americas", !(country %in% c("Canada", "United States"))) %>%
+  select(ojs_total_active = total_active, ojs_total = total, ojs_v3_active, ojs_v3, ojs_v2_active, ojs_v2) %>% 
+  summarize_all(sum, na.rm = TRUE)
+```
+
+
+```{r, out.width="100%"}
+plot <-
+  shapefile %>% 
+  janitor::clean_names() %>%
+  rename(country = name) %>%
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+    country = if_else(str_detect(country, "Korea, Republic of"), "South Korea", country),
+    country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
+    country = if_else(str_detect(country, "Surinam"), "Surinam", country),
+  ) %>%
+  filter(region == 19, subregion != 21) %>%  
+  left_join(df_world, by = "country") %>% 
+  mutate(
+    total = replace_na(total, 0),
+    total_active = replace_na(total_active, 0),
+    ojs_v2 = replace_na(ojs_v2, 0),
+    ojs_v2_active = replace_na(ojs_v2_active, 0),
+    ojs_v3 = replace_na(ojs_v3, 0),
+    ojs_v3_active = replace_na(ojs_v3_active, 0),
+    subtext1 = str_c("Journals: ", total_active, " active (", total, " present)"),
+    subtext2 = str_c("V3: ", ojs_v3_active, " active (", ojs_v3, " present)"),
+    subtext3 = str_c("V2: ", ojs_v2_active, " active (", ojs_v2, " present)"),
+    hover_text = str_c(country, subtext1, subtext2, subtext3, sep = "\n"),
+    total_active = pmin(total_active, 400)
+  ) %>%
+  ggplot() +
+  geom_sf(aes(fill = total_active, text = hover_text), size = 0.3, show.legend = FALSE) +
+  scale_fill_gradientn(
+    breaks = seq(0, 400, 200),
+    colors = RColorBrewer::brewer.pal(n = 9, name = "PuRd"),
+    labels = labels
+  ) +
+  theme_minimal()
+
+ggplotly(plot, tooltip = "hover_text") %>% 
+  layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE))
+```
+
 
 ```{r}
 df_world %>% 
-  filter(continent == "Africa") %>% 
-  select(ojs_total = total, ojs_total_active = total_active, ojs_v3, ojs_v3_active, ojs_v2, ojs_v2_active) %>% 
-  summarize_all(sum, na.rm = TRUE) %>% 
-  knitr::kable()
+  filter(continent == "Americas", !(country %in% c("Canada", "United States"))) %>%
+  arrange(-total_active) %>% 
+  select(Country = country, Active = total_active, Present = total, `V3 active` = ojs_v3_active, `V3 present` = ojs_v3, `V2 active` = ojs_v2_active, `V2 present` = ojs_v2) %>% 
+  DT::datatable()
 ```
+
+#### OJS Version 2 installation URLs in Latin America by number of active and present journals
+
+```{r}
+df_world_install %>% 
+  filter(continent == "Americas", !(country %in% c("Canada", "United States")), ojs_v2 > 0) %>%
+  arrange(country, desc(ojs_v2_active)) %>% 
+  mutate(domain = str_c('<a href="http://', domain, '" target="_blank">', domain, '</a>')) %>% 
+  select(Country = country, `V2 installation URL` = domain, `V2 active` = ojs_v2_active, `V2 present` = ojs_v2) %>% 
+  DT::datatable(escape = F)
+```
+
+
+<br/>
+
+---
+
+<small><b>1</b> The `hover` in interactive maps works along country borders instead of within country regions. When 2 countries share a border, the `hover` shows the country with more active journals.</small>
 
