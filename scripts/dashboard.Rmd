@@ -10,7 +10,7 @@ output:
 
 ---
 
-Total count: 11,572 active journals
+Total count: 11,572 active journals<sup>1</sup>
 
 --- 
 
@@ -279,4 +279,4 @@ df_world %>%
 
 ---
 
-<small><b>1</b> The `hover` in interactive maps works along country borders instead of within country regions. When 2 countries share a border, the `hover` shows the country with more active journals.</small>
+<small><b>1</b> The `hover` in the interactive map works along country borders instead of within country regions. When two countries share a border, the `hover` shows the country with more active journals.</small>

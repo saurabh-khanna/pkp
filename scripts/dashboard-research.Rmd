@@ -261,7 +261,7 @@ rm(df_world_install_act)
 ---
 
 ### Global Use of OJS by Version, 2017-19
-**Active journals using OJS (5 records/year): 2017, 2018 or 2019**
+**Active journals using OJS (5 records/year): 2017, 2018 or 2019**<sup>1</sup>
 
 Total count: 11,572 active (26,374 present)
 
@@ -334,7 +334,7 @@ df_world %>%
 ---
 
 ### African Use of OJS by Version, 2017-19
-**Active journals using OJS (5 records/year): 2017, 2018 or 2019**
+**Active journals using OJS (5 records/year): 2017, 2018 or 2019**<sup>1</sup>
 
 Total count: 295 active (759 present)
 
@@ -418,7 +418,7 @@ df_world_install %>%
 ---
 
 ### Latin American Use of OJS by Version, 2017-19
-**Active journals using OJS (5 records/year): 2017, 2018 or 2019**
+**Active journals using OJS (5 records/year): 2017, 2018 or 2019**<sup>1</sup>
 
 Total count: 2,691 active (4,826 present)
 
@@ -504,5 +504,5 @@ df_world_install %>%
 
 ---
 
-<small><b>1</b> The `hover` in interactive maps works along country borders instead of within country regions. When 2 countries share a border, the `hover` shows the country with more active journals.</small>
+<small><b>1</b> The `hover` in interactive maps works along country borders instead of within country regions. When two countries share a border, the `hover` shows the country with more active journals.</small>
 
