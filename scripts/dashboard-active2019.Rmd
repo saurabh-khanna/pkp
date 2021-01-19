@@ -41,7 +41,7 @@ df <-
 
 
 ```{r}
-# getting tlds
+# getting domain and tld
 df <- 
   bind_cols(
     df,
