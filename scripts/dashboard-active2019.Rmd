@@ -21,7 +21,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina
 pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly)
 
 # Data
-df <- read_csv(here::here("data/beacon.csv"))
+df <- read_csv(here::here("data/beacon-2019-min5.csv"))
 
 shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
 tld <- read_csv(here::here("data/tld-country.csv"))
