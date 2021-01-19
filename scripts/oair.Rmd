@@ -1,0 +1,133 @@
+---
+title: "OJS Scrape"
+author: "Saurabh Khanna"
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+# knitr options
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina = 4)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# Libraries
+pacman::p_load(tidyverse, ojsr, oai, janitor, lubridate, urltools)
+
+# Data
+df <- read_csv(here::here("data", "beacon.csv"))
+# correcting some oai urls
+df <- 
+  df %>% 
+  mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url)) %>% 
+  distinct(oai_url, .keep_all = T)
+```
+
+
+```{r, eval = F}
+#issues <- get_issues_from_archive(input_url = df$oai_url)
+#articles <- get_articles_from_issue(input_url = issues$output_url)
+#metadata <- get_html_meta_from_article(input_url = articles$output_url)
+```
+
+
+```{r}
+issues <-
+  read_csv(here::here("data", "issues_ojsr.csv")) %>% 
+  rename(url_match1 = output_url)
+
+articles <-
+  read_csv(here::here("data", "articles_ojsr.csv")) %>% 
+  rename(url_match1 = input_url, url_match2 = output_url)
+
+metadata <-
+  read_csv(here::here("data", "meta_ojsr.csv")) %>% 
+  select(input_url, meta_data_name, meta_data_content) %>% 
+  pivot_wider(names_from = meta_data_name, values_from = meta_data_content) %>% 
+  mutate_all(as.character) %>% 
+  select(url_match2 = input_url, contains("date"))
+```
+
+
+
+```{r}
+df_details<-
+  issues %>% 
+  inner_join(articles, by = "url_match1") %>% 
+  inner_join(metadata, by = "url_match2") %>% 
+  rename(issue_url = url_match1, article_url = url_match2) %>% 
+  mutate_at(vars(contains("date")), as_date) %>% 
+  clean_names()
+
+df_details <- bind_cols(df_details %>% pull(input_url) %>% domain(), df_details) %>% rename(domain = `...1`)
+```
+
+
+```{r}
+df_details %>% glimpse()
+
+df_details %>% count(domain) %>% arrange(-n)
+```
+
+
+```{r}
+df_details %>% 
+  mutate(year = year(dc_date_created)) %>% 
+  ggplot(aes(year)) +
+  geom_bar() +
+  theme_bw() +
+  scale_x_continuous(breaks = seq(2000, 2020, 1)) +
+  labs(x = "Year created")
+```
+
+
+
+```{r, eval = F}
+journals <- 
+  data.frame(cbind(
+    oai_url = c(
+      "https://dspace.palermo.edu/ojs/index.php/psicodebate/issue/archive",
+      "https://publicaciones.sociales.uba.ar/index.php/odisea"
+    )
+  ), stringsAsFactors = FALSE
+  )
+```
+
+
+```{r, eval = F}
+bind_cols(
+  journals %>% head(),
+  journals %>% head() %>% pull(oai_url) %>% parse_base_url(),
+  journals %>% head() %>% pull(oai_url) %>% get_issues_from_archive() %>% view()
+)
+```
+
+
+```{r, eval = F}
+journals %>% 
+  pull(oai_url) %>% 
+  get_issues_from_archive() %>% 
+  pull(output_url) %>% 
+  get_articles_from_issue() %>% 
+  head(1) %>% 
+  pull(output_url) %>% 
+  get_html_meta_from_article() %>%
+  select(input_url, meta_data_name, meta_data_content) %>% 
+  pivot_wider(names_from = meta_data_name, values_from = meta_data_content) %>% 
+  mutate_all(as.character)
+```
+
+
+```{r, eval = F}
+df %>% 
+  filter(str_detect(oai_url, "revues.imist")) %>% 
+  pull(oai_url) %>% 
+  parse_base_url() %>% 
+  head(1) %>% 
+  get_issues_from_archive()
+```
+
+

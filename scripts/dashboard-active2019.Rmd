@@ -1,7 +1,6 @@
 ---
-title: "Global Use of OJS, 2019"
-subtitle: "Active journals (at least 5 records in 2019) using OJS"
-#author: "Saurabh Khanna"
+title: "Global Use of OJS"
+subtitle: "Active journals (at least 5 records) using OJS"
 date: "Updated: `r Sys.Date()`"
 output:
   html_document:
@@ -10,9 +9,6 @@ output:
 
 ---
 
-Total count: 14,458 active journals<sup>1</sup>
-
---- 
 
 ```{r setup, include=FALSE}
 # knitr options
@@ -22,14 +18,14 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, lubridate, janitor, plotly)
+pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly)
 
 # Data
-df <- read_csv(here::here("data", "beacon-2019-min5.csv"))
+df <- read_csv(here::here("data/beacon.csv"))
 
 shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
-tld <- read_csv(here::here("data", "tld-country.csv"))
-tld_from_ip <- read_csv(here::here("data", "tld_from_ip.csv"))
+tld <- read_csv(here::here("data/tld-country.csv"))
+tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 
 canada.states <- 
   c("Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon")
@@ -38,11 +34,14 @@ canada.states <-
 
 ```{r}
 # correcting some oai urls
-df <- df %>% mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url))
+df <- 
+  df %>% 
+  mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url))
 ```
 
 
 ```{r}
+# getting tlds
 df <- 
   bind_cols(
     df,
@@ -57,7 +56,7 @@ df <-
 
 
 ```{r}
-# Mapping countries to continents
+# Cleaning countries + Mapping countries to continents
 df <-
   df %>% 
   mutate(
@@ -71,6 +70,10 @@ df <-
     )
   ) %>% 
   mutate(
+    country = if_else(country == "Washington (State)", "United States", country),
+    country = if_else(str_detect(country, "United States|New York|District of Columbia"), "United States", country),
+    country = if_else(country %in% state.name, "United States", country),
+    country = if_else(country %in% canada.states, "Canada", country),
     country = if_else(str_detect(country, "China"), "China", country),
     country = if_else(str_detect(country, "Armenia"), "Armenia", country),
     country = if_else(str_detect(country, "Georgia"), "Georgia", country),
@@ -78,11 +81,7 @@ df <-
     country = if_else(str_detect(country, "England"), "United Kingdom", country),
     country = if_else(str_detect(country, "Russia|Soviet Union"), "Russia", country),
     country = if_else(str_detect(country, "Palestine"), "Palestine", country),
-    country = if_else(country == "Korea (South)", "South Korea", country),
-    country = if_else(country == "Washington (State)", "United States", country),
-    country = if_else(str_detect(country, "United States|New York|District of Columbia"), "United States", country),
-    country = if_else(country %in% state.name, "United States", country),
-    country = if_else(country %in% canada.states, "Canada", country)
+    country = if_else(country == "Korea (South)", "South Korea", country)
   )
 
 continents <-
@@ -92,7 +91,7 @@ continents <-
 
 df <- df %>% bind_cols(continents)
 
-# rename last column to continent
+# rename last column to `continent`
 names(df)[length(names(df))] <- "continent"
 
 rm(tld, tld_from_ip)
@@ -100,7 +99,7 @@ rm(tld, tld_from_ip)
 # merging morocco and western sahara
 shapefile <-
   shapefile %>% 
-  janitor::clean_names() %>% 
+  clean_names() %>% 
   mutate(
     name = if_else(name == "Western Sahara", "Morocco", name)
   ) %>%
@@ -139,7 +138,16 @@ df_world <-
     ojs_v2 = replace_na(ojs_v2, 0),
     ojs_v3 = replace_na(ojs_v3, 0)
   )
+
+total_count <- 
+  df_world %>% 
+  summarise(total = sum(total, na.rm = TRUE)) %>% 
+  pull(total)
 ```
+
+Total count: `r toString(total_count)` active journals<sup>1</sup>
+
+--- 
 
 
 ```{r, out.width="100%"}
@@ -147,7 +155,7 @@ fill_threshold <- 500
 
 plot <-
   shapefile %>% 
-  janitor::clean_names() %>%
+  clean_names() %>%
   rename(country = name) %>%
   mutate(
     country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),

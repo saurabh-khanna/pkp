@@ -6,6 +6,8 @@
 *.xlsx
 *.docx
 *.pdf
+*.rar
+*.zip
 data/
 *.ipynb
 .ipynb_checkpoints/
