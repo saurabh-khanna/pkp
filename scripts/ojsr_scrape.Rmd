@@ -18,34 +18,87 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina
 pacman::p_load(tidyverse, ojsr, oai, janitor, lubridate, urltools)
 
 # Data
-df <- read_csv(here::here("data", "beacon.csv"))
+df <- read_csv(here::here("data", "beacon-2019-min5.csv"))
 
 # correcting some oai urls
 df %>% 
   mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url)) %>% 
-  filter(country == "Morocco") %>%
-  summarize(tot = sum(total_record_count, na.rm = T)) %>% 
-  
+  filter(str_detect(oai_url, "stanford"))
 ```
 
 ```{r}
-x <- list_identifiers("https://revues.imist.ma/index.php/index/oai")
-```
-
-```{r}
+x <- list_identifiers("https://ojs.stanford.edu/ojs/index.php/index/oai")
 x
 ```
 
 ```{r}
-y <- list_records("https://revues.imist.ma/index.php/index/oai")
+y <- list_records("https://ojs.stanford.edu/ojs/index.php/index/oai")
+#y %>% write_csv("ojs_records_stanford.csv")
+```
+
+```{r}
+y %>% select(contains("date"), everything())
+```
+
+```{r}
+y %>% 
+  transmute(
+    year = str_sub(date, 1, 4),
+    journal = word(setSpec, 1, sep = "\\:") %>% str_to_upper() %>% str_trim()
+  ) %>% 
+  count(journal, year) %>% 
+  drop_na(year) %>% 
+  pivot_wider(names_from = year, values_from = n) %>% 
+  mutate_all(~ replace_na(., 0)) %>% 
+  mutate(
+    total =
+      pmap_dbl(
+        select(., starts_with("2")),
+        ~ sum(c(...), na.rm = TRUE)
+      )
+  ) %>% 
+  select(journal, total, sort(tidyselect::peek_vars(), decreasing = T))
 ```
 
 
 ```{r}
 y %>% 
-  select(contains("pub")) %>% 
-  mutate(year = str_sub(date, 1, 4)) %>% 
-  summarize_all(~ mean(is.na(.)))
+  transmute(
+    year = str_sub(date, 1, 4),
+    journal = word(setSpec, 1, sep = "\\:") %>% str_to_upper() %>% str_trim()
+  ) %>% 
+  count(journal, year) %>% 
+  drop_na(year) %>% 
+  pivot_wider(names_from = year, values_from = n) %>% 
+  mutate_all(~ replace_na(., 0)) %>%
+  pivot_longer(-journal, names_to = "year", values_to = "records") %>%
+  arrange(desc(journal)) %>% 
+  ggplot(aes(year, records, group = journal, color = journal)) +
+  geom_point() +
+  geom_line(size = 0.8) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(
+    x = "Publication Year",
+    y = "Records",
+    color = "Journal"
+  )
+```
+
+
+
+```{r}
+y %>% 
+  mutate(
+    publication_date = date,
+    pub_year_src1 = str_sub(date, 1, 4),
+    journal = word(setSpec, 1, sep = "\\:") %>% str_to_upper() %>% str_trim(),
+    pub_year_src2 = str_sub(date, 1, 4),
+    date = lubridate::ymd(date)
+  ) %>% 
+  filter(str_detect(journal, "INTERSECT")) %>% 
+  arrange(date) %>% 
+  select(journal, pub_year_src1, pub_year_src2, identifier.1, relation)
 ```
 
 
