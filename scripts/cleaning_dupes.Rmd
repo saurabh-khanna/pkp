@@ -109,7 +109,8 @@ df %>% get_dupes(domain, issn)
 
 
 ```{r}
-# creating grouped dfs
+# Stats for John #
+
 df_world <-
   df %>%
   filter(record_count_2019 >= 5) %>% 
