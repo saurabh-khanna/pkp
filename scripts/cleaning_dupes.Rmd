@@ -145,3 +145,10 @@ df_world %>%
 df_world %>% arrange(-total) %>% select(-continent)
 ```
 
+```{r}
+df %>%
+  filter(record_count_2019 >= 5 & country == "Indonesia" & ojs_v2) %>% 
+  count(domain) %>% 
+  arrange(-n)
+```
+
