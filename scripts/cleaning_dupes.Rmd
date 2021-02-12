@@ -99,12 +99,28 @@ df %>% summarise_all(~ mean(is.na(.)))
 Noting dupes:
 
 ```{r}
-df %>% get_dupes(issn) %>% count(dupe_count)
+df %>% drop_na(issn) %>% get_dupes(issn) %>% arrange(issn, desc(dupe_count)) %>% 
+  write_csv(here::here("beacon_duplicates", "duplicates_by_issn.csv"))
 
-df %>% get_dupes(repository_name, issn)
+df %>% drop_na(issn) %>% get_dupes(issn, repository_name) %>% arrange(issn, repository_name, desc(dupe_count)) %>% 
+  write_csv(here::here("beacon_duplicates", "duplicates_by_issn_reponame.csv"))
 
-df %>% get_dupes(domain, issn)
+df %>% drop_na(issn) %>% get_dupes(issn, domain) %>% arrange(issn, domain, desc(dupe_count)) %>% 
+  write_csv(here::here("beacon_duplicates", "duplicates_by_issn_domain.csv"))
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
