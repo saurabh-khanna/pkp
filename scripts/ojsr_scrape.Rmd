@@ -37,7 +37,18 @@ y <- list_records("https://ojs.stanford.edu/ojs/index.php/index/oai")
 ```
 
 ```{r}
-y %>% select(contains("date"), everything())
+y %>% select(contains("source"), everything())
+
+# issye year not same as pub year problem
+y %>% 
+  transmute(
+    journal = word(setSpec, 1, sep = "\\:") %>% str_to_upper() %>% str_trim(),
+    pub_year = str_sub(date, 1, 4) %>% as.integer(),
+    issue_year = str_extract(source, "(19|20)\\d{2}") %>% as.integer(),
+    url = identifier.1
+  ) %>% 
+  arrange(journal) %>% 
+  filter(pub_year != issue_year)
 ```
 
 ```{r}

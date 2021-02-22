@@ -92,35 +92,42 @@ names(df)[length(names(df))] <- "continent"
 
 rm(tld, tld_from_ip)
 
-df %>% summarise_all(~ mean(is.na(.)))
+df %>% filter(total_record_count > 0) %>% summarise_all(~ mean(is.na(.)))
 ```
 
 
 Noting dupes:
 
 ```{r}
-df %>% drop_na(issn) %>% get_dupes(issn) %>% arrange(issn, desc(dupe_count)) %>% 
+df %>% 
+  drop_na(issn) %>% get_dupes(issn) %>% arrange(issn, desc(dupe_count)) %>% 
   write_csv(here::here("beacon_duplicates", "duplicates_by_issn.csv"))
 
-df %>% drop_na(issn) %>% get_dupes(issn, repository_name) %>% arrange(issn, repository_name, desc(dupe_count)) %>% 
+df %>% 
+  drop_na(issn) %>% get_dupes(issn, repository_name) %>% arrange(issn, repository_name, desc(dupe_count)) %>% 
   write_csv(here::here("beacon_duplicates", "duplicates_by_issn_reponame.csv"))
 
-df %>% drop_na(issn) %>% get_dupes(issn, domain) %>% arrange(issn, domain, desc(dupe_count)) %>% 
+df %>% 
+  drop_na(issn) %>% get_dupes(issn, domain) %>% arrange(issn, domain, desc(dupe_count)) %>% 
   write_csv(here::here("beacon_duplicates", "duplicates_by_issn_domain.csv"))
 ```
 
 
+```{r}
+df %>% 
+  drop_na(issn) %>% get_dupes(issn, repository_name, set_spec) %>% arrange(issn, repository_name, set_spec, desc(dupe_count)) %>% 
+  write_csv(here::here("beacon_duplicates", "duplicates_by_issn_reponame_setspec.csv"))
 
+df %>% 
+  filter(is.na(issn) & total_record_count > 0) %>% 
+  drop_na(repository_name, admin_email) %>% 
+  get_dupes(repository_name, admin_email) %>% arrange(repository_name, admin_email, desc(dupe_count))
 
-
-
-
-
-
-
-
-
-
+df %>% 
+  filter(is.na(issn) & total_record_count > 0) %>% 
+  drop_na(repository_name, admin_email, set_spec) %>% 
+  get_dupes(repository_name, admin_email, set_spec) %>% arrange(repository_name, admin_email, set_spec, desc(dupe_count))
+```
 
 
 
@@ -164,7 +171,8 @@ df_world %>% arrange(-total) %>% select(-continent)
 ```{r}
 df %>%
   filter(record_count_2019 >= 5 & country == "Indonesia" & ojs_v2) %>% 
-  count(domain) %>% 
-  arrange(-n)
+  count(domain, name = "ojs_v2_journals") %>% 
+  arrange(-ojs_v2_journals) %>% 
+  datatable()
 ```
 
