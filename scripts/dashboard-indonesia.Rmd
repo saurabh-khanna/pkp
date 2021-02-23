@@ -108,6 +108,19 @@ df_ind_active <-
   filter(country == "Indonesia" & ojs_v2 & record_count_2019 >= 5) %>% 
   count(domain, name = "ojs_v2_active")
 
+ojs_v2_present_total <- df_ind_present %>% summarize(ojs_v2_present_total = sum(ojs_v2_present, na.rm = T)) %>% pull(ojs_v2_present_total)
+ojs_v2_active_total <- df_ind_active %>% summarize(ojs_v2_active_total = sum(ojs_v2_active, na.rm = T)) %>% pull(ojs_v2_active_total)
+```
+
+Current status:
+
+`r toString(ojs_v2_active_total)` active journals<sup>1</sup> using OJS v2
+
+`r toString(ojs_v2_present_total)` present journals using OJS v2
+
+<br/>
+
+```{r}
 df_ind_present %>%
   left_join(df_ind_active, by = "domain") %>% 
   mutate(
@@ -119,3 +132,8 @@ df_ind_present %>%
   DT::datatable(escape = F, options = list(pageLength = 25))
 ```
 
+<br/>
+
+---
+
+<small><b>1</b> A journal is considered as `active` if it published 5 or more articles in 2019.</small>
