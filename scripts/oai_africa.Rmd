@@ -1,11 +1,11 @@
 ---
-title: "Getting lists of duplicates"
-date: "Updated: `r Sys.Date()`"
-output:
-  html_document:
-    toc: false
+title: "OAI Scrape"
+author: "Saurabh Khanna"
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    toc: true
 ---
-
 
 ```{r setup, include=FALSE}
 # knitr options
@@ -15,28 +15,23 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly)
+pacman::p_load(tidyverse, oai, janitor, urltools, countrycode)
 
 # Data
 df <- read_csv(here::here("data/beacon-latest/beacon.csv"))
-#shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
 tld <- read_csv(here::here("data/tld-country.csv"))
 tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 
 canada.states <- 
   c("Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon")
-```
 
 
-```{r}
 # correcting some oai urls
 df <- 
   df %>% 
   mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url))
-```
 
 
-```{r}
 # getting domain and tld
 df <- 
   bind_cols(
@@ -48,10 +43,8 @@ df <-
     tld = if_else(!is.na(tld_from_ip), tld_from_ip, tld)
   ) %>%
   left_join(tld, by = "tld")
-```
 
 
-```{r}
 # Cleaning countries + Mapping countries to continents
 df <-
   df %>% 
@@ -92,47 +85,37 @@ df <- df %>% bind_cols(continents)
 names(df)[length(names(df))] <- "continent"
 
 rm(tld, tld_from_ip)
-
-df %>% filter(total_record_count > 0) %>% summarise_all(~ mean(is.na(.)))
-
-#df %>% filter(total_record_count > 0) %>% write_csv(here::here("beacon_countries_cleaned_03.03.2021.csv"))
 ```
 
 
-Noting dupes:
+
 
 ```{r}
-df %>% 
-  drop_na(issn) %>% get_dupes(issn) %>% arrange(issn, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_by_issn.csv"))
+oai_urls <- 
+  df %>% 
+  filter(continent == "Africa") %>% 
+  distinct(oai_url) %>% 
+  filter(!str_detect(oai_url, "\n")) %>% 
+  head() %>% 
+  pull(oai_url)
 
-df %>% 
-  drop_na(issn) %>% get_dupes(issn, repository_name) %>% arrange(issn, repository_name, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_by_issn_reponame.csv"))
-
-df %>% 
-  drop_na(issn) %>% get_dupes(issn, domain) %>% arrange(issn, domain, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_by_issn_domain.csv"))
-
-df %>% 
-  drop_na(issn) %>% 
-  get_dupes(issn, repository_name, set_spec) %>% arrange(issn, repository_name, set_spec, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_by_issn_reponame_setspec.csv"))
+list_identifiers(http://www.m-sciences.com/index.php/index/oai)
 ```
 
 
-```{r}
-df %>% 
-  filter(is.na(issn) & total_record_count > 0) %>% 
-  drop_na(repository_name, admin_email) %>% 
-  get_dupes(repository_name, admin_email) %>% arrange(repository_name, admin_email, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_reponame_email (no issn).csv"))
 
-df %>% 
-  filter(is.na(issn) & total_record_count > 0) %>% 
-  drop_na(repository_name, admin_email, set_spec) %>% 
-  get_dupes(repository_name, admin_email, set_spec) %>% arrange(repository_name, admin_email, set_spec, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_reponame_email_setspec (no issn).csv"))
+```{r}
+start_time <- Sys.time()
+
+datalist = list()
+for (i in 1:length(oai_urls)) {
+  datalist[[i]] <- list_identifiers(oai_urls[[i]])
+  current <- i
+}
+big_data <- bind_rows(datalist)
+
+end_time <- Sys.time()
+end_time - start_time
 ```
 
 
@@ -140,46 +123,101 @@ df %>%
 
 
 
-```{r}
-# Stats for John #
 
-df_world <-
-  df %>%
-  filter(record_count_2019 >= 5) %>% 
-  drop_na(country) %>%   
-  group_by(country, continent) %>% 
-  summarize(
-    ojs_v2 = sum(ojs_v2, na.rm = T),
-    ojs_v3 = sum(ojs_v3, na.rm = T)
-  ) %>% 
-  ungroup() %>% 
+
+
+
+
+
+
+
+
+
+
+```{r}
+x <- list_identifiers("https://ojs.stanford.edu/ojs/index.php/index/oai")
+x
+```
+
+```{r}
+y <- list_records("https://ojs.stanford.edu/ojs/index.php/index/oai")
+#y %>% write_csv("ojs_records_stanford.csv")
+```
+
+```{r}
+y %>% select(contains("source"), everything())
+
+# issye year not same as pub year problem
+y %>% 
   transmute(
-    country,
-    continent,
-    ojs_v2,
-    ojs_v3,
-    total = ojs_v2 + ojs_v3
+    journal = word(setSpec, 1, sep = "\\:") %>% str_to_upper() %>% str_trim(),
+    pub_year = str_sub(date, 1, 4) %>% as.integer(),
+    issue_year = str_extract(source, "(19|20)\\d{2}") %>% as.integer(),
+    url = identifier.1
   ) %>% 
-  mutate(
-    total = replace_na(total, 0),
-    ojs_v2 = replace_na(ojs_v2, 0),
-    ojs_v3 = replace_na(ojs_v3, 0)
-  )
-
-
-df_world %>% 
-  summarise(
-    total = sum(total, na.rm = TRUE),
-    ojs_v2 = sum(ojs_v2, na.rm = TRUE),
-    ojs_v3 = sum(ojs_v3, na.rm = TRUE)
-  )
-
-df_world %>% arrange(-total) %>% select(-continent)
-
-df %>%
-  filter(record_count_2019 >= 5 & country == "Indonesia" & ojs_v2) %>% 
-  count(domain, name = "ojs_v2_journals") %>% 
-  arrange(-ojs_v2_journals) %>% 
-  datatable()
+  arrange(journal) %>% 
+  filter(pub_year != issue_year)
 ```
+
+```{r}
+y %>% 
+  transmute(
+    year = str_sub(date, 1, 4),
+    journal = word(setSpec, 1, sep = "\\:") %>% str_to_upper() %>% str_trim()
+  ) %>% 
+  count(journal, year) %>% 
+  drop_na(year) %>% 
+  pivot_wider(names_from = year, values_from = n) %>% 
+  mutate_all(~ replace_na(., 0)) %>% 
+  mutate(
+    total =
+      pmap_dbl(
+        select(., starts_with("2")),
+        ~ sum(c(...), na.rm = TRUE)
+      )
+  ) %>% 
+  select(journal, total, sort(tidyselect::peek_vars(), decreasing = T))
+```
+
+
+```{r}
+y %>% 
+  transmute(
+    year = str_sub(date, 1, 4),
+    journal = word(setSpec, 1, sep = "\\:") %>% str_to_upper() %>% str_trim()
+  ) %>% 
+  count(journal, year) %>% 
+  drop_na(year) %>% 
+  pivot_wider(names_from = year, values_from = n) %>% 
+  mutate_all(~ replace_na(., 0)) %>%
+  pivot_longer(-journal, names_to = "year", values_to = "records") %>%
+  arrange(desc(journal)) %>% 
+  ggplot(aes(year, records, group = journal, color = journal)) +
+  geom_point() +
+  geom_line(size = 0.8) +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  labs(
+    x = "Publication Year",
+    y = "Records",
+    color = "Journal"
+  )
+```
+
+
+
+```{r}
+y %>% 
+  mutate(
+    publication_date = date,
+    pub_year_src1 = str_sub(date, 1, 4),
+    journal = word(setSpec, 1, sep = "\\:") %>% str_to_upper() %>% str_trim(),
+    pub_year_src2 = str_sub(date, 1, 4),
+    date = lubridate::ymd(date)
+  ) %>% 
+  filter(str_detect(journal, "INTERSECT")) %>% 
+  arrange(date) %>% 
+  select(journal, pub_year_src1, pub_year_src2, identifier.1, relation)
+```
+
 
