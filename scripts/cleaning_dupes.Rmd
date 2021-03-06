@@ -95,7 +95,8 @@ rm(tld, tld_from_ip)
 
 df %>% filter(total_record_count > 0) %>% summarise_all(~ mean(is.na(.)))
 
-#df %>% filter(total_record_count > 0) %>% write_csv(here::here("beacon_countries_cleaned_03.03.2021.csv"))
+# df %>% filter(total_record_count > 0) %>% write_csv(here::here("beacon_countries_cleaned_03.03.2021.csv"))
+# df %>% write_csv(here::here("data/beacon-latest/beacon-clean.csv"))
 ```
 
 
