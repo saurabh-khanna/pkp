@@ -18,13 +18,30 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina
 pacman::p_load(tidyverse, ojsr, oai, janitor, lubridate, urltools)
 
 # Data
-df <- read_csv(here::here("data", "beacon-2019-min5.csv"))
+df <- read_csv(here::here("data/beacon-latest", "beacon.csv"))
 
 # correcting some oai urls
 df %>% 
-  mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url)) %>% 
-  filter(str_detect(oai_url, "stanford"))
+  mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url))
 ```
+
+```{r}
+# test_url <-
+#   df %>% 
+#   group_by(oai_url) %>% 
+#   summarize(total = sum(total_record_count, na.rm = TRUE)) %>%
+#   filter(total == 0) %>%
+#   sample_n(1) %>% 
+#   pull(oai_url)
+# 
+# list_identifiers(test_url)
+```
+
+
+
+
+
+
 
 ```{r}
 x <- list_identifiers("https://ojs.stanford.edu/ojs/index.php/index/oai")

@@ -19,7 +19,6 @@ pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltoo
 
 # Data
 df <- read_csv(here::here("data/beacon-latest/beacon.csv"))
-#shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
 tld <- read_csv(here::here("data/tld-country.csv"))
 tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 
@@ -95,45 +94,85 @@ rm(tld, tld_from_ip)
 
 df %>% filter(total_record_count > 0) %>% summarise_all(~ mean(is.na(.)))
 
-# df %>% filter(total_record_count > 0) %>% write_csv(here::here("beacon_countries_cleaned_03.03.2021.csv"))
-# df %>% write_csv(here::here("data/beacon-latest/beacon-clean.csv"))
+duplicated_issns <- df %>% drop_na(issn) %>% get_dupes(issn) %>% distinct(issn) %>% pull(issn)
 ```
+
+
+```{r}
+# df %>% 
+#   filter(str_detect(oai_url, "journal.ajogm.com"))
+# 
+# oai::list_identifiers("https://journal.ajogm.com/index.php/index/oai")
+```
+
+
+
+```{r}
+df %>% 
+  filter(!(issn %in% duplicated_issns))
+
+df %>%
+  filter(is.na(issn) & total_record_count > 0) %>%
+  drop_na(repository_name, admin_email, set_spec) %>%
+  arrange(repository_name, admin_email, set_spec, desc(last_oai_response)) %>% 
+  relocate(last_oai_response, dupe_count, total_record_count, record_count_2019) %>% 
+  distinct(repository_name, admin_email, set_spec, .keep_all = TRUE)
+
+df %>%
+  filter(is.na(issn) & total_record_count > 0) %>%
+  drop_na(repository_name, admin_email, set_spec) %>%
+  get_dupes(repository_name, admin_email, set_spec) %>%
+  arrange(repository_name, admin_email, set_spec, desc(last_oai_response)) %>% 
+  select(last_oai_response, dupe_count, total_record_count, record_count_2019, repository_name, admin_email, set_spec) %>% 
+  group_by(repository_name, admin_email, set_spec) %>% 
+  mutate(
+    names = str_c("total_record_", row_number())
+  ) %>% 
+  ungroup() %>% 
+  pivot_wider(id_cols = c(repository_name, admin_email, set_spec), names_from = names, values_from = total_record_count) %>% 
+  filter(total_record_1 < total_record_2) %>% 
+  relocate(total_record_1, total_record_2) %>% 
+  remove_empty()
+
+18/458
+```
+
 
 
 Noting dupes:
 
 ```{r}
-df %>% 
-  drop_na(issn) %>% get_dupes(issn) %>% arrange(issn, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_by_issn.csv"))
-
-df %>% 
-  drop_na(issn) %>% get_dupes(issn, repository_name) %>% arrange(issn, repository_name, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_by_issn_reponame.csv"))
-
-df %>% 
-  drop_na(issn) %>% get_dupes(issn, domain) %>% arrange(issn, domain, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_by_issn_domain.csv"))
-
-df %>% 
-  drop_na(issn) %>% 
-  get_dupes(issn, repository_name, set_spec) %>% arrange(issn, repository_name, set_spec, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_by_issn_reponame_setspec.csv"))
+# df %>% 
+#   drop_na(issn) %>% get_dupes(issn) %>% arrange(issn, desc(dupe_count)) %>% count(issn)
+#   write_csv(here::here("beacon_duplicates", "duplicates_by_issn.csv"))
+# 
+# df %>% 
+#   drop_na(issn) %>% get_dupes(issn, repository_name) %>% arrange(issn, repository_name, desc(dupe_count)) %>% 
+#   write_csv(here::here("beacon_duplicates", "duplicates_by_issn_reponame.csv"))
+# 
+# df %>% 
+#   drop_na(issn) %>% get_dupes(issn, domain) %>% arrange(issn, domain, desc(dupe_count)) %>% 
+#   write_csv(here::here("beacon_duplicates", "duplicates_by_issn_domain.csv"))
+# 
+# df %>% 
+#   drop_na(issn) %>% 
+#   get_dupes(issn, repository_name, set_spec) %>% arrange(issn, repository_name, set_spec, desc(dupe_count)) %>% 
+#   write_csv(here::here("beacon_duplicates", "duplicates_by_issn_reponame_setspec.csv"))
 ```
 
 
 ```{r}
-df %>% 
-  filter(is.na(issn) & total_record_count > 0) %>% 
-  drop_na(repository_name, admin_email) %>% 
-  get_dupes(repository_name, admin_email) %>% arrange(repository_name, admin_email, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_reponame_email (no issn).csv"))
-
-df %>% 
-  filter(is.na(issn) & total_record_count > 0) %>% 
-  drop_na(repository_name, admin_email, set_spec) %>% 
-  get_dupes(repository_name, admin_email, set_spec) %>% arrange(repository_name, admin_email, set_spec, desc(dupe_count)) %>% 
-  write_csv(here::here("beacon_duplicates", "duplicates_reponame_email_setspec (no issn).csv"))
+# df %>% 
+#   filter(is.na(issn) & total_record_count > 0) %>% 
+#   drop_na(repository_name, admin_email) %>% 
+#   get_dupes(repository_name, admin_email) %>% arrange(repository_name, admin_email, desc(dupe_count)) %>% 
+#   write_csv(here::here("beacon_duplicates", "duplicates_reponame_email (no issn).csv"))
+# 
+# df %>% 
+#   filter(is.na(issn) & total_record_count > 0) %>% 
+#   drop_na(repository_name, admin_email, set_spec) %>% 
+#   get_dupes(repository_name, admin_email, set_spec) %>% arrange(repository_name, admin_email, set_spec, desc(dupe_count)) %>% 
+#   write_csv(here::here("beacon_duplicates", "duplicates_reponame_email_setspec (no issn).csv"))
 ```
 
 
@@ -146,6 +185,7 @@ df %>%
 
 df_world <-
   df %>%
+  filter(!(issn %in% duplicated_issns)) %>% 
   filter(record_count_2019 >= 5) %>% 
   drop_na(country) %>%   
   group_by(country, continent) %>% 
@@ -183,4 +223,6 @@ df %>%
   arrange(-ojs_v2_journals) %>% 
   datatable()
 ```
+
+
 
