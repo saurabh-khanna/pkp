@@ -98,14 +98,6 @@ duplicated_issns <- df %>% drop_na(issn) %>% get_dupes(issn) %>% distinct(issn) 
 ```
 
 
-```{r}
-# df %>% 
-#   filter(str_detect(oai_url, "journal.ajogm.com"))
-# 
-# oai::list_identifiers("https://journal.ajogm.com/index.php/index/oai")
-```
-
-
 
 ```{r}
 df %>% 
@@ -115,7 +107,7 @@ df %>%
   filter(is.na(issn) & total_record_count > 0) %>%
   drop_na(repository_name, admin_email, set_spec) %>%
   arrange(repository_name, admin_email, set_spec, desc(last_oai_response)) %>% 
-  relocate(last_oai_response, dupe_count, total_record_count, record_count_2019) %>% 
+  relocate(last_oai_response, total_record_count, record_count_2019) %>% 
   distinct(repository_name, admin_email, set_spec, .keep_all = TRUE)
 
 df %>%
@@ -123,16 +115,24 @@ df %>%
   drop_na(repository_name, admin_email, set_spec) %>%
   get_dupes(repository_name, admin_email, set_spec) %>%
   arrange(repository_name, admin_email, set_spec, desc(last_oai_response)) %>% 
-  select(last_oai_response, dupe_count, total_record_count, record_count_2019, repository_name, admin_email, set_spec) %>% 
+  select(last_oai_response, dupe_count, total_record_count, record_count_2019, repository_name, admin_email, set_spec, domain, oai_url) %>% 
   group_by(repository_name, admin_email, set_spec) %>% 
   mutate(
     names = str_c("total_record_", row_number())
   ) %>% 
   ungroup() %>% 
   pivot_wider(id_cols = c(repository_name, admin_email, set_spec), names_from = names, values_from = total_record_count) %>% 
-  filter(total_record_1 < total_record_2) %>% 
   relocate(total_record_1, total_record_2) %>% 
-  remove_empty()
+  filter(total_record_1 < total_record_2) %>% 
+  remove_empty() %>% 
+  left_join(
+    df %>% distinct(repository_name, admin_email, set_spec, .keep_all = T),
+    by = c("repository_name", "admin_email", "set_spec")
+  ) %>% 
+  relocate(total_record_1, total_record_2, repository_name, admin_email, set_spec, domain, oai_url) %>% 
+  arrange(repository_name, admin_email, set_spec) %>% 
+  rename(latest_record_count = total_record_1, penultimate_record_count = total_record_2) 
+  # writexl::write_xlsx("record_count_latest_version_issue_03.26.21.xlsx")
 
 18/458
 ```

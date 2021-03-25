@@ -1,0 +1,57 @@
+---
+title: "Getting lists of duplicates"
+date: "Updated: `r Sys.Date()`"
+output:
+  html_document:
+    toc: false
+---
+
+
+```{r setup, include=FALSE}
+# knitr options
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina = 4)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# Libraries
+pacman::p_load(tidyverse, janitor, readxl, oai)
+
+# Data
+df <- 
+  read_excel(here::here("data/kevin/beacon_countries_cleaned_03.03-data-review.xlsx")) %>% 
+  clean_names() %>% 
+  remove_empty() %>%
+  filter(!is.na(inactive))
+```
+
+
+```{r}
+df %>%
+  filter(inactive == "N") %>%
+  relocate(oai_url, record_count_2019, total_record_count, set_spec, repository_name) %>% 
+  arrange(oai_url) %>% 
+  filter(str_detect(set_spec, "ejis"))
+```
+
+```{r}
+# , from = '2019-01-01T', until = '2019-12-31T'
+df_prob <-
+  list_records("http://journals.euser.org/index.php/index/oai") %>%
+  filter(str_detect(setSpec, "ejis"))
+```
+
+
+```{r}
+df_prob %>% 
+  mutate(
+    pub_year = str_sub(date, 1, 4) %>% as.integer(),
+    issue_year = str_extract(source, "(19|20)\\d{2}") %>% as.integer(),
+    pub_year = if_else(!is.na(issue_year) & issue_year != pub_year, issue_year, pub_year),
+    url = identifier.1
+  ) %>%
+  drop_na(date) %>%
+  count(pub_year)
+```
+
+
