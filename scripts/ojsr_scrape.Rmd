@@ -95,9 +95,9 @@ rm(tld, tld_from_ip)
 
 
 ```{r}
-# df %>% 
-#   filter(country == "Morocco") %>% 
-#   write_csv(here::here("data/beacon-latest/beacon-morocco.csv"))
+df %>%
+  filter(country == "Morocco", total_record_count > 0) %>%
+  write_csv(here::here("data/beacon-latest/beacon-morocco.csv"))
 ```
 
 
