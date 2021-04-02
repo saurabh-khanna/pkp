@@ -131,7 +131,7 @@ df %>%
   ) %>% 
   relocate(total_record_1, total_record_2, repository_name, admin_email, set_spec, domain, oai_url) %>% 
   arrange(repository_name, admin_email, set_spec) %>% 
-  rename(latest_record_count = total_record_1, penultimate_record_count = total_record_2) 
+  rename(latest_record_count = total_record_1, penultimate_record_count = total_record_2)
   # writexl::write_xlsx("record_count_latest_version_issue_03.26.21.xlsx")
 
 18/458
