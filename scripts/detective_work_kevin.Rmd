@@ -39,6 +39,8 @@ df %>%
 df_prob <-
   list_records("http://journals.euser.org/index.php/index/oai") %>%
   filter(str_detect(setSpec, "ejis"))
+
+# oai::list_records('https://ws168.juntadeandalucia.es/revistaselectronicas/index/oai')
 ```
 
 
