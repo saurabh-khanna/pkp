@@ -124,6 +124,8 @@ oai_2019 <- df_oai %>% filter(year == 2019) %>% count() %>% pull(n)
 
 <br/>
 
+### Article count
+
 + Beacon 
   - Total: `r toString(beacon_total)`
   - 2019: `r toString(beacon_2019)`
@@ -134,6 +136,7 @@ oai_2019 <- df_oai %>% filter(year == 2019) %>% count() %>% pull(n)
   - 2019: `r toString(oai_2019)`
 
 <br/>
+
 
 ```{r}
 df_oai %>%
@@ -164,6 +167,8 @@ df_oai %>%
   mutate(
     domain = str_c('<a href="http://', domain, '" target="_blank">', domain, '</a>')
   ) %>%
+  arrange(desc(oai_total)) %>% 
+  relocate(domain, oai_total, beacon_total, oai_2019, beacon_2019) %>% 
   DT::datatable(escape = F, options = list(pageLength = 20))
 ```
 
