@@ -1,0 +1,169 @@
+---
+title: "Morocco: Beacon-OAI Comparison"
+date: "Updated: `r Sys.Date()`"
+output:
+  html_document:
+    toc: false
+---
+
+
+```{r setup, include=FALSE}
+# knitr options
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina = 4)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# Libraries
+pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly)
+
+# Data
+df <- read_csv(here::here("data/beacon-latest/beacon.csv"))
+tld <- read_csv(here::here("data/tld-country.csv"))
+tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
+
+canada.states <- 
+  c("Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon")
+```
+
+
+```{r}
+# correcting some oai urls
+df <- 
+  df %>% 
+  mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url))
+
+# getting domain and tld
+df <- 
+  bind_cols(
+    df,
+    df %>% pull(oai_url) %>% domain() %>% tld_extract()
+  ) %>% 
+  left_join(tld_from_ip, by = "domain") %>%
+  mutate(
+    tld = if_else(!is.na(tld_from_ip), tld_from_ip, tld)
+  ) %>%
+  left_join(tld, by = "tld")
+
+# Cleaning countries + Mapping countries to continents
+df <-
+  df %>% 
+  mutate(
+    country = if_else(is.na(country), country_clean, country),
+    ojs_v2 = str_detect(version, "^ojs2/2"),
+    ojs_v3 = str_detect(version, "^ojs2/3"),
+    version_clean = case_when(
+      ojs_v2 ~ "Version 2",
+      ojs_v3 ~ "Version 3",
+      TRUE ~ "Other"
+    )
+  ) %>% 
+  mutate(
+    country = if_else(country == "Washington (State)", "United States", country),
+    country = if_else(str_detect(country, "United States|New York|District of Columbia"), "United States", country),
+    country = if_else(country %in% state.name, "United States", country),
+    country = if_else(country %in% canada.states, "Canada", country),
+    country = if_else(str_detect(country, "China"), "China", country),
+    country = if_else(str_detect(country, "Armenia"), "Armenia", country),
+    country = if_else(str_detect(country, "Georgia"), "Georgia", country),
+    country = if_else(str_detect(country, "Australia|New South Wales|Queensland|Victoria"), "Australia", country),
+    country = if_else(str_detect(country, "England|British"), "United Kingdom", country),
+    country = if_else(str_detect(country, "Russia|Soviet Union"), "Russia", country),
+    country = if_else(str_detect(country, "Palestine"), "Palestine", country),
+    country = if_else(country == "Korea (South)", "South Korea", country)
+  ) %>% 
+  select(-country_clean)
+
+continents <-
+  df %>%
+  pull(country) %>% 
+  countrycode(origin = "country.name", destination = "continent")
+
+df <- df %>% bind_cols(continents)
+
+# rename last column to `continent`
+names(df)[length(names(df))] <- "continent"
+
+df_beacon <- df %>% filter(country == "Morocco")
+
+rm(tld, tld_from_ip, df)
+
+# df %>% 
+#   filter(str_detect(domain, "revues")) %>% 
+#   count(oai_url)
+```
+
+```{r}
+df_oai <- read_csv(here::here("data/oai_extracts/oai_morocco.csv"))
+
+oai_duplicated <- c("ijpsat.ijsht-journals.org", "www.agrimaroc.org", "www.revuecca.com", "www.revue-isg.com", "mbmj.org", "www.innove.org", "www.techagro.org", "www.ijbtsr.org")
+
+df_oai <- 
+  bind_cols(
+    df_oai,
+    df_oai %>% pull(`dc:identifier`) %>% domain() %>% tld_extract()
+  ) %>% 
+  mutate(
+    year = lubridate::year(`dc:date`) %>% as.integer,
+    issue_year = str_extract(`dc:source`, "(19|20)\\d{2}") %>% as.integer(),
+    year = if_else((year != issue_year & !is.na(issue_year)), issue_year, year)
+  ) %>% 
+  filter(!(domain %in% oai_duplicated))
+
+# df_oai %>% glimpse()
+```
+
+```{r}
+# getting totals
+beacon_total <- df_beacon %>% summarize(n = sum(total_record_count, na.rm = T)) %>% pull(n)
+beacon_2019 <- df_beacon %>% summarize(n = sum(record_count_2019, na.rm = T)) %>% pull(n)
+
+oai_total <- df_oai %>% count() %>% pull(n)
+oai_2019 <- df_oai %>% filter(year == 2019) %>% count() %>% pull(n)
+```
+
+<br/>
+
++ Beacon 
+  - Total: `r toString(beacon_total)`
+  - 2019: `r toString(beacon_2019)`
+
+
++ OAI 
+  - Total: `r toString(oai_total)`
+  - 2019: `r toString(oai_2019)`
+
+<br/>
+
+```{r}
+df_oai %>%
+  count(domain, year) %>% 
+  drop_na(year) %>% 
+  pivot_wider(names_from = year, values_from = n) %>% 
+  mutate_all(~ replace_na(., 0)) %>% 
+  mutate(
+    total =
+      pmap_dbl(
+        select(., -domain),
+        ~ sum(c(...), na.rm = TRUE)
+      )
+  ) %>% 
+  select(domain, total, sort(tidyselect::peek_vars(), decreasing = T)) %>% 
+  rename_at(vars(-domain), ~ str_c("oai_", .)) %>% 
+  full_join(
+    df_beacon %>% 
+      group_by(domain) %>% 
+      summarize(
+        beacon_total = sum(total_record_count, na.rm = T),
+        beacon_2019 = sum(record_count_2019, na.rm = T)
+      ),
+    by = "domain"
+  ) %>% 
+  relocate(domain, beacon_total, beacon_2019) %>% 
+  mutate_all(~ replace_na(., 0)) %>% 
+  mutate(
+    domain = str_c('<a href="http://', domain, '" target="_blank">', domain, '</a>')
+  ) %>%
+  DT::datatable(escape = F, options = list(pageLength = 20))
+```
+
