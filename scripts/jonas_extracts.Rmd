@@ -25,7 +25,7 @@ tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 
 ```{r}
 # Data
-df <- read_csv(here::here("data/beacon-latest/beacon.csv"))
+df <- read_csv(here::here("data/jonas/beacon-report-2019.csv"))
 
 canada.states <- 
   c("Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon")
@@ -233,19 +233,12 @@ Joining:
 ```{r}
 df2019 %>%
   full_join(df2020, by = c("oai_url", "version", "repository_name", "issn", "country", "set_spec")) %>% 
-  full_join(df2021, by = c("oai_url", "version", "repository_name", "issn", "country", "set_spec")) %>% 
-  filter(oai_url == "http://journals.euser.org/index.php/index/oai") %>%
-  filter(str_detect(set_spec, "ejis")) %>% 
+  full_join(df2021, by = c("oai_url", "version", "repository_name", "issn", "country", "set_spec")) %>%
+  distinct(.keep_all = T) %>% 
+  # filter(oai_url == "http://journals.euser.org/index.php/index/oai") %>%
+  # filter(str_detect(set_spec, "ejis")) %>% 
   glimpse()
 ```
-
-
-
-```{r}
-df %>% 
-  filter(oai_url == 'https://ws168.juntadeandalucia.es/revistaselectronicas/index/oai')
-```
-
 
 
 

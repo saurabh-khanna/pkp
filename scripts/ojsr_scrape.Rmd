@@ -28,11 +28,6 @@ canada.states <-
 
 
 ```{r}
-read_csv(here::here("data/jonas/beacon-report-2021.csv"))
-```
-
-
-```{r}
 # correcting some oai urls
 df <- 
   df %>% 
@@ -100,29 +95,6 @@ rm(tld, tld_from_ip)
 
 
 ```{r}
-df %>%
-  filter(total_record_count > 0) %>%
-  write_csv(here::here("data/beacon-latest/beacon-clean.csv"))
-
-df %>% 
-  filter(total_record_count > 0, str_detect(oai_url, "juntadean"))
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```{r}
 # test_url <-
 #   df %>% 
 #   group_by(oai_url) %>% 
@@ -136,14 +108,27 @@ df %>%
 
 
 ```{r}
-x <- list_identifiers("https://ojs.stanford.edu/ojs/index.php/index/oai")
-x
+x <- oai::list_identifiers("https://ojs.stanford.edu/ojs/index.php/index/oai")
+x %>% arrange(datestamp)
 ```
 
 ```{r}
-y <- list_records("https://ojs.stanford.edu/ojs/index.php/index/oai")
+y <- oai::list_records("https://ojs.stanford.edu/ojs/index.php/index/oai")
 #y %>% write_csv("ojs_records_stanford.csv")
 ```
+
+
+```{r}
+y %>% 
+  transmute(
+    datestamp,
+    year = str_sub(date, 1, 4) %>% as.integer(),
+    issue_year = str_extract(source, "(19|20)\\d{2}") %>% as.integer(),
+    url = identifier.1
+  )
+```
+
+
 
 ```{r}
 y %>% select(contains("source"), everything())
