@@ -86,7 +86,7 @@ df <- df %>% bind_cols(continents)
 # rename last column to `continent`
 names(df)[length(names(df))] <- "continent"
 
-df2019 <- df %>% select(record_count_2019, total_record_count, oai_url, version, repository_name, issn, country, set_spec)
+df2019 <- df %>% filter(total_record_count > 0) %>% select(record_count_2019, total_record_count, oai_url, version, repository_name, issn, country, set_spec)
 ```
 
 
@@ -155,7 +155,7 @@ df <- df %>% bind_cols(continents)
 # rename last column to `continent`
 names(df)[length(names(df))] <- "continent"
 
-df2020 <- df %>% select(record_count_2020, total_record_count, oai_url, version, repository_name, issn, country, set_spec)
+df2020 <- df %>% filter(total_record_count > 0) %>% select(record_count_2020, total_record_count, oai_url, version, repository_name, issn, country, set_spec)
 ```
 
 
@@ -224,22 +224,50 @@ df <- df %>% bind_cols(continents)
 # rename last column to `continent`
 names(df)[length(names(df))] <- "continent"
 
-df2021 <- df %>% select(record_count_2021, total_record_count, oai_url, version, repository_name, issn, country, set_spec)
+df2021 <- df %>% filter(total_record_count > 0) %>% select(record_count_2021, total_record_count, oai_url, version, repository_name, issn, country, set_spec)
 ```
 
 
 Joining:
 
 ```{r}
-df2019 %>%
+df <-
+  df2019 %>%
   full_join(df2020, by = c("oai_url", "version", "repository_name", "issn", "country", "set_spec")) %>% 
   full_join(df2021, by = c("oai_url", "version", "repository_name", "issn", "country", "set_spec")) %>%
-  distinct(.keep_all = T) %>% 
-  # filter(oai_url == "http://journals.euser.org/index.php/index/oai") %>%
-  # filter(str_detect(set_spec, "ejis")) %>% 
-  glimpse()
+  distinct(oai_url, version, repository_name, issn, country, set_spec, .keep_all = T) %>%
+  mutate(
+    record_count_2019_or_later = record_count_2019 + record_count_2020 + record_count_2021,
+    active = (record_count_2019_or_later >= 10)
+  )
 ```
 
+```{r}
+# creating grouped dfs
+df_world <-
+  df %>% 
+  tabyl(country, active) %>% 
+  as_tibble() %>% 
+  drop_na(country) %>% 
+  rename(inactive = `FALSE`, active = `TRUE`) %>% 
+  mutate(
+    total = inactive + active,
+    perc_active = ((active/total) * 100) %>% round(digits = 2)
+  ) %>% 
+  arrange(-total)
+
+df_world
+
+df_world %>% 
+  summarise(
+    active = sum(active, na.rm = TRUE),
+    inactive = sum(inactive, na.rm = TRUE),
+    total = sum(total, na.rm = TRUE)
+  ) %>% 
+  mutate(
+    perc_active = ((active/total) * 100) %>% round(digits = 2)
+  )
+```
 
 
 
