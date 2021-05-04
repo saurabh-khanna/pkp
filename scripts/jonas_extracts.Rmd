@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly)
+pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly, readxl)
 tld <- read_csv(here::here("data/tld-country.csv"))
 tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
@@ -88,7 +88,7 @@ df <- df %>% bind_cols(continents)
 # rename last column to `continent`
 names(df)[length(names(df))] <- "continent"
 
-df2019 <- df %>% filter(total_record_count > 0) %>% select(record_count_2019, total_record_count, oai_url, version, repository_name, issn, country, set_spec, earliest_datestamp)
+df2019 <- df %>% filter(total_record_count > 0) %>% select(record_count_2019, total_record_count, oai_url, version, repository_name, issn, country, set_spec, earliest_datestamp, domain)
 ```
 
 
@@ -156,7 +156,7 @@ df <- df %>% bind_cols(continents)
 # rename last column to `continent`
 names(df)[length(names(df))] <- "continent"
 
-df2020 <- df %>% filter(total_record_count > 0) %>% select(record_count_2020, total_record_count, oai_url, version, repository_name, issn, country, set_spec, earliest_datestamp)
+df2020 <- df %>% filter(total_record_count > 0) %>% select(record_count_2020, total_record_count, oai_url, version, repository_name, issn, country, set_spec, earliest_datestamp, domain)
 ```
 
 
@@ -224,7 +224,7 @@ df <- df %>% bind_cols(continents)
 # rename last column to `continent`
 names(df)[length(names(df))] <- "continent"
 
-df2021 <- df %>% filter(total_record_count > 0) %>% select(record_count_2021, total_record_count, oai_url, version, repository_name, issn, country, set_spec, earliest_datestamp)
+df2021 <- df %>% filter(total_record_count > 0) %>% select(record_count_2021, total_record_count, oai_url, version, repository_name, issn, country, set_spec, earliest_datestamp, domain)
 ```
 
 
@@ -238,9 +238,81 @@ df <-
   distinct(oai_url, repository_name, set_spec, .keep_all = T) %>%
   mutate(
     record_count_2019_or_later = record_count_2019 + record_count_2020 + record_count_2021,
-    active = (record_count_2019_or_later >= 10)
+    active = (record_count_2019_or_later >= 10),
+    set_spec = set_spec %>% str_trim() %>% str_to_upper(),
+    repository_name = repository_name %>% str_trim() %>% str_to_upper(),
   )
 ```
+
+
+```{r, eval=F}
+# detective work for kevin
+df_doaj <- 
+  read_excel(here::here("data/kevin/kevin_doaj.xlsx")) %>% clean_names() %>% 
+  remove_empty()
+
+df_doaj <-
+  bind_cols(
+    df_doaj,
+    df_doaj %>% pull(journal_url) %>% domain() %>% tld_extract()
+  ) %>%
+  mutate(
+    platform = platform_host_or_aggregator %>% str_trim() %>% str_to_upper(),
+    journal_title = journal_title %>% str_trim() %>% str_to_upper(),
+    publisher = publisher %>% str_trim() %>% str_to_upper(),
+    country = country_of_publisher %>% str_trim(),
+    issn = journal_eissn_online_version,
+    ojs = str_detect(platform, "OJS|NEPJOL|AJOL|SEER|OPEN JOURNAL SYSTEM")
+  )
+
+# question 1
+df_doaj %>% 
+  filter(ojs) %>% 
+  anti_join(df, by = "issn") %>% 
+  anti_join(df, by = "domain") %>% 
+  anti_join(df, by = c("journal_title" = "set_spec")) %>% 
+  anti_join(df, by = c("publisher" = "repository_name")) %>% 
+  relocate(domain) %>%
+  summarise_all(~ mean(is.na(.)))
+
+# # question 2
+# df_doaj %>% 
+#   filter((!ojs | is.na(ojs)) & !is.na(issn)) %>% 
+#   inner_join(df, by = "issn")
+# 
+# df_doaj %>% 
+#   filter((!ojs | is.na(ojs)) & !is.na(domain)) %>% 
+#   inner_join(df, by = "domain")
+# 
+# df_doaj %>% summarise_all(~ mean(is.na(.)))
+
+# checks
+df %>% 
+  filter(str_detect(domain, "revistaccuba"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
