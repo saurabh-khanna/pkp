@@ -261,7 +261,7 @@ df_doaj <-
     journal_title = journal_title %>% str_trim() %>% str_to_upper(),
     publisher = publisher %>% str_trim() %>% str_to_upper(),
     country = country_of_publisher %>% str_trim(),
-    issn = journal_eissn_online_version,
+    issn = journal_eissn_online_version %>% str_trim(),
     ojs = str_detect(platform, "OJS|NEPJOL|AJOL|SEER|OPEN JOURNAL SYSTEM")
   )
 
@@ -272,23 +272,55 @@ df_doaj %>%
   anti_join(df, by = "domain") %>% 
   anti_join(df, by = c("journal_title" = "set_spec")) %>% 
   anti_join(df, by = c("publisher" = "repository_name")) %>% 
-  relocate(domain) %>%
+  arrange(country, publisher, journal_title) %>% 
+  relocate(country, publisher, journal_title) %>% 
+  count(country) %>% arrange(-n)
+
+df_doaj %>% 
+  filter(ojs) %>% 
+  anti_join(df, by = "issn") %>% 
+  anti_join(df, by = "domain") %>% 
+  anti_join(df, by = c("journal_title" = "set_spec")) %>% 
+  anti_join(df, by = c("publisher" = "repository_name")) %>% 
+  arrange(country, publisher, journal_title) %>% 
+  relocate(country, publisher, journal_title) %>% 
   summarise_all(~ mean(is.na(.)))
 
-# # question 2
-# df_doaj %>% 
-#   filter((!ojs | is.na(ojs)) & !is.na(issn)) %>% 
+# question 2
+# df_doaj %>%
+#   filter((!ojs | is.na(ojs)) & !is.na(issn)) %>%
 #   inner_join(df, by = "issn")
 # 
-# df_doaj %>% 
-#   filter((!ojs | is.na(ojs)) & !is.na(domain)) %>% 
+# df_doaj %>%
+#   filter((!ojs | is.na(ojs)) & !is.na(domain)) %>%
 #   inner_join(df, by = "domain")
-# 
-# df_doaj %>% summarise_all(~ mean(is.na(.)))
+
 
 # checks
+df_doaj %>% 
+  filter(ojs) %>% 
+  anti_join(df, by = "issn") %>% 
+  anti_join(df, by = "domain") %>% 
+  anti_join(df, by = c("journal_title" = "set_spec")) %>% 
+  anti_join(df, by = c("publisher" = "repository_name")) %>% 
+  arrange(country, publisher, journal_title) %>% 
+  relocate(country, publisher, journal_title) %>% 
+  filter(str_detect(country, "Finland")) %>% 
+  distinct(domain)
+
 df %>% 
-  filter(str_detect(domain, "revistaccuba"))
+  filter(str_detect(domain, "wittgenstein"), country == "Brazil") %>% 
+  distinct(domain.x)
+
+df_doaj %>% 
+  filter(ojs) %>% 
+  anti_join(df, by = "issn") %>% 
+  anti_join(df, by = "domain") %>% 
+  anti_join(df, by = c("journal_title" = "set_spec")) %>% 
+  anti_join(df, by = c("publisher" = "repository_name")) %>% 
+  arrange(country, publisher, journal_title) %>% 
+  relocate(country, publisher, journal_title) %>%
+  distinct(domain)
 ```
 
 
