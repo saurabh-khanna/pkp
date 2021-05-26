@@ -113,8 +113,15 @@ df <-
   mutate(active = (record_count_from_2019 >= 10)) %>%
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
 
-# df %>% glimpse()
+df %>% glimpse()
 # df %>% summarize_all(~ sum(is.na(.)))
+
+# df %>% 
+#   drop_na(country) %>% 
+#   filter(active) %>% 
+#   relocate(country, set_spec, context_name, repository_name, domain, issn, record_count_from_2019, total_record_count, active) %>%
+#   arrange(country, repository_name, set_spec, context_name, domain, issn, record_count_from_2019, total_record_count) %>%
+#   write_csv("beacon_active_deduped_05.26.2021.csv")
 ```
 
 
