@@ -73,8 +73,8 @@ df <-
   df %>% 
   mutate(
     country = country_clean,
-    ojs_v2 = str_detect(version, "^ojs2/2"),
-    ojs_v3 = str_detect(version, "^ojs2/3"),
+    ojs_v2 = str_detect(version, "^2"),
+    ojs_v3 = str_detect(version, "^3"),
     version_clean = case_when(
       ojs_v2 ~ "Version 2",
       ojs_v3 ~ "Version 3",
@@ -110,11 +110,31 @@ names(df)[length(names(df))] <- "continent"
 df <-
   df %>% 
   filter(total_record_count > 0) %>% 
-  mutate(active = (record_count_from_2019 >= 10)) %>%
+  mutate(
+    record_count_from_2019 = record_count_2019 + record_count_2020 + record_count_2021,
+    active = (record_count_from_2019 >= 10),
+    active2019 = (record_count_2019 >= 5),
+    active2020 = (record_count_2020 >= 5),
+    active2021 = (record_count_2021 >= 5)
+  ) %>%
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
+```
+
+```{r, eval=FALSE}
+df %>% summarize_all(~ sum(is.na(.)))
+df %>% glimpse()
 
 df %>% drop_na(country) %>% count(active)
-df %>% summarize_all(~ sum(is.na(.)))
+
+df %>% drop_na(country) %>% count(active2019)
+df %>% drop_na(country) %>% count(active2020)
+df %>% drop_na(country) %>% count(active2021)
+
+# 450/13685 (3.3%) domain urls unresponsive
+df %>% count(unresponsive)
+df %>% count(domain)
+
+df %>% filter(unresponsive == 1) %>% count(oai_url)
 
 # df %>%
 #   drop_na(country) %>%
@@ -122,20 +142,6 @@ df %>% summarize_all(~ sum(is.na(.)))
 #   relocate(country, set_spec, context_name, repository_name, domain, issn, record_count_from_2019, total_record_count, active) %>%
 #   arrange(country, repository_name, set_spec, context_name, domain, issn, record_count_from_2019, total_record_count) %>%
 #   write_csv("beacon_active_deduped_with_omp_ops_06.02.2021.csv")
-```
-
-
-```{r}
-df %>% 
-  filter(version_clean == "Version 3") %>% 
-  drop_na(issn) %>% 
-  get_dupes(issn) %>% 
-  count(issn)
-
-df %>% 
-  drop_na(country) %>% 
-  filter(active) %>% 
-  distinct(issn)
 ```
 
 
@@ -178,14 +184,9 @@ df_world <-
   transmute(
     country,
     continent,
-    ojs_v2,
-    ojs_v3,
-    total
-  ) %>%
-  mutate(
-    total = replace_na(total, 0),
     ojs_v2 = replace_na(ojs_v2, 0),
-    ojs_v3 = replace_na(ojs_v3, 0)
+    ojs_v3 = replace_na(ojs_v3, 0),
+    total = replace_na(total, 0)
   )
 
  
@@ -492,11 +493,11 @@ df_doaj <-
 df_doaj %>% 
   filter(ojs) %>% 
   anti_join(df, by = "issn") %>% 
-  anti_join(df, by = "domain") %>% 
-  anti_join(df, by = c("journal_title" = "set_spec")) %>% 
-  anti_join(df, by = c("publisher" = "repository_name")) %>% 
+  # anti_join(df, by = "domain") %>% 
+  # anti_join(df, by = c("journal_title" = "set_spec")) %>% 
+  # anti_join(df, by = c("publisher" = "repository_name")) %>% 
   arrange(country, publisher, journal_title) %>% 
-  relocate(country, publisher, journal_title) %>% 
+  relocate(country, issn, ojs, publisher, journal_title) %>% 
   count(country) %>% arrange(-n)
 
 df_doaj %>% 
@@ -506,7 +507,7 @@ df_doaj %>%
   anti_join(df, by = c("journal_title" = "set_spec")) %>% 
   anti_join(df, by = c("publisher" = "repository_name")) %>% 
   arrange(country, publisher, journal_title) %>% 
-  relocate(country, publisher, journal_title) %>% 
+  relocate(country, issn, ojs, publisher, journal_title) %>% 
   summarise_all(~ mean(is.na(.)))
 
 # question 2
@@ -547,20 +548,22 @@ df_doaj %>%
 # predatory matching
 
 pred_list <- 
-  read_csv(here::here("data/predatory/list1.csv")) %>% 
+  read_csv("/home/saurabh/Everything/GitHub/beall-live/data/df_weekly.csv") %>% 
   clean_names() %>% 
   remove_empty()
 
 pred_list <-
   bind_cols(
     pred_list,
-    pred_list %>% pull(url_publisher) %>% domain() %>% tld_extract()
+    pred_list %>% pull(url) %>% domain() %>% tld_extract()
   ) %>% 
   relocate(domain) %>% 
   mutate(
     domain = str_replace(domain, "^www.", "")
   ) %>% 
   distinct(domain, .keep_all = T)
+
+pred_list
 
 df_pred <- 
   df %>%
@@ -570,41 +573,19 @@ df_pred <-
   inner_join(pred_list, by = "domain") %>%
   relocate(domain)
 
-# 43 out of 1133 publisher domains
-# 378 journals
-# 202 active, 176 inactive
+
+# 55 out of 1329 publisher domains (4% domains are in the beacon)
+# 498 journals (252 active, 246 inactive) [0.9% active and 1.6% inactive OJS journals]
 # US and India
+
 df_pred %>% count(domain) %>% arrange(-n)
 
 df_pred %>% count(active)
 
-df_pred %>% filter(active) %>% count(country) %>% arrange(-n)
+df_pred %>% count(country) %>% arrange(-n)
+
+242/(41202-26689)
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
