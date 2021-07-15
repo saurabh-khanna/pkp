@@ -234,8 +234,13 @@ sheets <- list(
   "Active-Alive-DOAJ Breakdown for 684 OJS journals matching Bealls List" = table4
 ) 
 
-write_xlsx(sheets, here::here("data/predatory/results/results.xlsx"))
+write_xlsx(sheets, here::here("data/predatory/results/beall_ojs_matching_results.xlsx"))
 ```
 
 
+
+```{r}
+df_pred %>%
+  
+```
 
