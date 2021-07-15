@@ -142,6 +142,8 @@ df_pred <-
 # US and India
 ```
 
+
+
 &nbsp;
 
 ```{r}
@@ -225,22 +227,41 @@ table4 <- df_pred %>% count(active, alive, doaj, name = "journals")
 table4 %>% knitr::kable()
 ```
 
+&nbsp;
+
+### Average articles per year - Predatory vs Overall
+
+```{r}
+table5 <-
+  df %>% 
+  select(active, contains("_count_")) %>% 
+  group_by(active) %>% 
+  summarize_all(~ mean(., na.rm = T)) %>% 
+  mutate(type = "overall") %>% 
+  bind_rows(
+    df_pred %>% 
+      select(active, contains("_count_")) %>% 
+      group_by(active) %>% 
+      summarize_all(~ mean(., na.rm = T)) %>% 
+      mutate(type = "predatory")
+  ) %>% 
+  relocate(type)
+
+table5 %>% knitr::kable()
+```
+
+
 ```{r, eval=F}
 # writing all tables to excel 
 sheets <- list(
   "OJS journals matching Bealls List" = table1, 
   "Domains matching Bealls List with OJS journal count" = table2,
   "OJS journals matching Bealls List by country" = table3,
-  "Active-Alive-DOAJ Breakdown for 684 OJS journals matching Bealls List" = table4
-) 
+  "Active-Alive-DOAJ Breakdown for 684 OJS journals matching Bealls List" = table4,
+  "Average Activity - Predatory vs Overall" = table5
+)
 
 write_xlsx(sheets, here::here("data/predatory/results/beall_ojs_matching_results.xlsx"))
 ```
 
-
-
-```{r}
-df_pred %>%
-  
-```
 
