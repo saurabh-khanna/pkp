@@ -227,6 +227,17 @@ table4 <- df_pred %>% count(active, alive, doaj, name = "journals")
 table4 %>% knitr::kable()
 ```
 
+
+```{r}
+df_pred %>% 
+  filter(!active, doaj) %>% 
+  count(domain)
+
+df %>% 
+  filter(domain == "aeirc-edu.com")
+```
+
+
 &nbsp;
 
 ### Average articles per year - Predatory vs Overall

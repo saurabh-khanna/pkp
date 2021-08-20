@@ -26,22 +26,22 @@ tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
 
 # merging morocco and western sahara
-shapefile <-
-  shapefile %>% 
-  clean_names() %>% 
-  mutate(
-    name = if_else(name == "Western Sahara", "Morocco", name)
-  ) %>%
-  arrange(name) %>% 
-  group_by(name) %>% 
-  summarize(
-    geometry = st_union(geometry),
-    lat = first(lat),
-    lon = first(lon),
-    region = first(region),
-    subregion = first(subregion)
-  ) %>% 
-  st_cast("MULTIPOLYGON")
+# shapefile <-
+#   shapefile %>% 
+#   clean_names() %>% 
+#   mutate(
+#     name = if_else(name == "Western Sahara", "Morocco", name)
+#   ) %>%
+#   arrange(name) %>% 
+#   group_by(name) %>% 
+#   summarize(
+#     geometry = st_union(geometry),
+#     lat = first(lat),
+#     lon = first(lon),
+#     region = first(region),
+#     subregion = first(subregion)
+#   ) %>% 
+#   st_cast("MULTIPOLYGON")
 ```
 
 
@@ -111,14 +111,80 @@ df <-
   df %>% 
   filter(total_record_count > 0) %>% 
   mutate(
-    record_count_from_2019 = record_count_2019 + record_count_2020 + record_count_2021,
-    active = (record_count_from_2019 >= 10),
+    active = ((record_count_2019 + record_count_2020 + record_count_2021) >= 10),
     active2019 = (record_count_2019 >= 5),
     active2020 = (record_count_2020 >= 5),
     active2021 = (record_count_2021 >= 5)
   ) %>%
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
 ```
+
+
+```{r}
+# michaels list (after figuring out alive domains)
+df_domains <- df %>% mutate(domain = str_replace(domain, "^www.", "")) %>% distinct(domain) %>% pull(domain)
+
+df_pkp <- read_csv(here::here("data/michael_pkp_list_with_alive_flag.csv")) %>% clean_names() %>% remove_empty()
+
+df_pkp <-  
+  bind_cols(
+    df_pkp,
+    df_pkp %>% pull(url) %>% domain() %>% tld_extract()
+  ) %>% 
+  mutate(
+    # source = source %>% str_to_upper() %>% str_trim(),
+    domain = str_replace(domain, "^www.", ""),
+    domain_in_beacon = (domain %in% df_domains)
+  ) %>% 
+  select(-tld) %>% 
+  arrange(source, desc(alive), domain_in_beacon) %>% 
+  rename(url_alive = alive, journal_path = url, journal_name = source)
+
+
+# for sending back to michael
+df_pkp %>% writexl::write_xlsx(here::here("data/michael_pkp_list_v2.xlsx"))
+  
+  
+
+
+### STATS ###  
+# Domain: 225/332 (67%) domains are not in the beacon
+df_pkp %>% 
+  count(domain) %>% 
+  anti_join(
+    df %>% mutate(domain = str_replace(domain, "^www.", "")) %>% distinct(domain),
+    by = "domain"
+  ) %>% 
+  arrange(-n)
+
+
+# # Name: 555/821 (67%) journals are not in the beacon
+# df_pkp %>%
+#   count(journal_name) %>%
+#   anti_join(
+#     df %>% mutate(context_name = context_name %>% str_to_upper() %>% str_trim()) %>% distinct(context_name),
+#     by = c("journal_name" = "context_name")
+#   ) %>%
+#   arrange(-n) %>%
+#   drop_na()
+
+df_pkp %>% glimpse()
+```
+
+
+
+```{r}
+# filtering top 100 active journals by record count
+df %>%
+  filter(active) %>% 
+  arrange(desc(total_record_count)) %>% 
+  select(context_name, total_record_count, domain) %>% 
+  head(100) %>%
+  mutate(domain = str_c('<a href="http://', domain, '" target="_blank">', domain, '</a>')) %>% 
+  DT::datatable(escape = F)
+```
+
+
 
 ```{r, eval=FALSE}
 df %>% summarize_all(~ sum(is.na(.)))
@@ -467,8 +533,6 @@ df_world_install %>%
 
 
 
-
-
 ```{r, eval=F}
 # detective work for kevin
 df_doaj <- 
@@ -493,11 +557,12 @@ df_doaj <-
 df_doaj %>% 
   filter(ojs) %>% 
   anti_join(df, by = "issn") %>% 
-  # anti_join(df, by = "domain") %>% 
-  # anti_join(df, by = c("journal_title" = "set_spec")) %>% 
-  # anti_join(df, by = c("publisher" = "repository_name")) %>% 
+  # anti_join(df, by = "domain") %>%
+  # anti_join(df, by = c("journal_title" = "set_spec")) %>%
+  # anti_join(df, by = c("publisher" = "repository_name")) %>%
   arrange(country, publisher, journal_title) %>% 
   relocate(country, issn, ojs, publisher, journal_title) %>% 
+  #writexl::write_xlsx(here::here("doaj_journals_not_in_beacon_07.16.2021.xlsx"))
   count(country) %>% arrange(-n)
 
 df_doaj %>% 
