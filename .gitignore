@@ -9,5 +9,5 @@
 *.rar
 *.zip
 data/
-*.ipynb
+jupyter/
 .ipynb_checkpoints/
