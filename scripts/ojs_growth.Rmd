@@ -88,21 +88,18 @@ names(df)[length(names(df))] <- "continent"
 df <-
   df %>% 
   filter(total_record_count > 0) %>%
+  # filter(application == "ojs") %>% 
   distinct(oai_url, repository_name, set_spec, .keep_all = T) %>% 
-  select(-c(record_count_1300:record_count_1899))
+  select(-c(record_count_1300:record_count_1979))
 
-#df %>% glimpse()
+df %>% glimpse()
 ```
 
-```{r}
-#df %>% filter(record_count_1900 > 0, domain == "www.mscand.dk")
-```
 
 ```{r}
-# df %>% 
-#   arrange(-total_record_count) %>% 
-#   head(10)
+df %>% count(country)
 ```
+
 
 
 
@@ -119,7 +116,7 @@ df %>%
     name = parse_number(name)
   ) %>% 
   filter(value >= 5) %>% 
-  count(name) %>% 
+  count(name) %>%
   ggplot(aes(name, n)) +
   geom_point() +
   geom_line() +

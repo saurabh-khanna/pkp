@@ -205,8 +205,10 @@ df %>% filter(unresponsive == 1) %>% count(oai_url)
 # df %>%
 #   drop_na(country) %>%
 #   filter(active) %>%
-#   relocate(country, set_spec, context_name, repository_name, domain, issn, record_count_from_2019, total_record_count, active) %>%
-#   arrange(country, repository_name, set_spec, context_name, domain, issn, record_count_from_2019, total_record_count) %>%
+#   relocate(country, set_spec, context_name, repository_name, domain, issn, total_record_count, active) %>%
+#   arrange(country, repository_name, set_spec, context_name, domain, issn, total_record_count) %>%
+#   select(-(record_count_1300:record_count_1979)) %>% 
+#   #filter(country == "Ecuador") %>% write_csv("ecuador_ojs_active_09.08.2021.csv")
 #   write_csv("beacon_active_deduped_with_omp_ops_06.02.2021.csv")
 ```
 

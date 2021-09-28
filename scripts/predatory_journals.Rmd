@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly, readxl, writexl)
+pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly, readxl, writexl, UpSetR)
 tld <- read_csv(here::here("data/tld-country.csv"))
 tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 ```
@@ -95,6 +95,10 @@ df <-
     active2021 = (record_count_2021 >= 5)
   ) %>%
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
+
+# df %>% 
+#   filter(record_count_2020 >= 10) %>% 
+#   count(continent)
 ```
 
 
@@ -110,8 +114,8 @@ df %>% drop_na(country) %>% count(active)
 # predatory matching
 
 pred_list <- 
-  read_csv("/home/saurabh/Everything/GitHub/beall-live/data/df_weekly_publishers.csv") %>% 
-  bind_rows(read_csv("/home/saurabh/Everything/GitHub/beall-live/data/df_weekly_standalone.csv")) %>% 
+  read_csv("/Users/saurabh/My Drive/GitHub/beall-live/data/df_weekly_publishers.csv") %>% 
+  bind_rows(read_csv("/Users/saurabh/My Drive/GitHub/beall-live/data/df_weekly_standalone.csv")) %>% 
   clean_names() %>% 
   remove_empty()
 
@@ -176,12 +180,12 @@ df_pred <-
 ```
 
 
-### OJS journals matching Beall's List
+## OJS journals matching Beall's List
 
 ```{r}
 table1 <-
   df_pred %>%
-  select(country, context_name, url, active, alive, doaj) %>% 
+  select(country, context_name, url, active) %>% 
   arrange(country, context_name) 
 
 table1 %>%
@@ -189,8 +193,21 @@ table1 %>%
   datatable(escape = F)
 ```
 
+&nbsp;
+
+Intersections:
+
+```{r}
+expressionInput <- c(ojs_active = 30332, ojs_inactive = 12248, beall = 2741, `ojs_active&ojs_inactive` = 0, `ojs_active&beall` = 406, 
+    `ojs_inactive&beall` = 298, `ojs_active&ojs_inactive&beall` = 0)
+
+upset(fromExpression(expressionInput), order.by = "freq")
+```
+
 
 &nbsp;
+
+## Additional analyses
 
 ### Domains matching Beall's List with OJS journal count
 
@@ -217,24 +234,13 @@ datatable(table3)
 ```
 
 
-&nbsp;
-
-### Active/Alive/DOAJ Breakdown for 684 OJS journals matching Beall's list
 
 ```{r}
-table4 <- df_pred %>% count(active, alive, doaj, name = "journals")
-
-table4 %>% knitr::kable()
-```
-
-
-```{r}
-df_pred %>% 
-  filter(!active, doaj) %>% 
-  count(domain)
-
-df %>% 
-  filter(domain == "aeirc-edu.com")
+# ### Active/Alive/DOAJ Breakdown for 704 OJS journals matching Beall's list
+# 
+# table4 <- df_pred %>% count(active, alive, doaj, name = "journals")
+# 
+# table4 %>% knitr::kable()
 ```
 
 
@@ -245,13 +251,13 @@ df %>%
 ```{r}
 table5 <-
   df %>% 
-  select(active, contains("_count_")) %>% 
+  select(active, record_count_2018, record_count_2019, record_count_2020) %>% 
   group_by(active) %>% 
   summarize_all(~ mean(., na.rm = T)) %>% 
   mutate(type = "overall") %>% 
   bind_rows(
     df_pred %>% 
-      select(active, contains("_count_")) %>% 
+      select(active, record_count_2018, record_count_2019, record_count_2020) %>%
       group_by(active) %>% 
       summarize_all(~ mean(., na.rm = T)) %>% 
       mutate(type = "predatory")
