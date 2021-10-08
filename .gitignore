@@ -8,6 +8,8 @@
 *.pdf
 *.rar
 *.zip
+*.sql
+*.sql.gz
 data/
 jupyter/
 .ipynb_checkpoints/
