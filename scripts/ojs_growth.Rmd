@@ -11,7 +11,7 @@ output:
 
 ```{r setup, include=FALSE}
 # knitr options
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina = 4)
 ```
 
 
@@ -88,9 +88,8 @@ names(df)[length(names(df))] <- "continent"
 df <-
   df %>% 
   filter(total_record_count > 0) %>%
-  # filter(application == "ojs") %>% 
-  distinct(oai_url, repository_name, set_spec, .keep_all = T) %>% 
-  select(-c(record_count_1300:record_count_1979))
+  filter(application == "ojs") %>% 
+  distinct(oai_url, repository_name, set_spec, .keep_all = T)
 
 df %>% glimpse()
 ```
@@ -126,6 +125,48 @@ df %>%
     y = "Active journals"
   )
 ```
+
+```{r}
+# percentage growth every year
+df %>%
+  drop_na(country) %>% 
+  select(context_name, record_count_1980:record_count_2020) %>% 
+  pivot_longer(cols = starts_with("record_count")) %>% 
+  mutate(
+    name = parse_number(name)
+  ) %>% 
+  filter(value >= 5) %>% 
+  count(name) %>% 
+  mutate(percent_growth_since_previous_year = round((n/lag(n) - 1) * 100, 2)) %>% 
+  rename(year = name, active_journals = n) %>% 
+  write_csv(here::here("ojs_growth_rate_by_year.csv"))
+
+df %>%
+  drop_na(country) %>% 
+  select(context_name, record_count_1980:record_count_2020) %>% 
+  pivot_longer(cols = starts_with("record_count")) %>% 
+  mutate(
+    name = parse_number(name)
+  ) %>% 
+  filter(value >= 5) %>% 
+  count(name) %>% 
+  mutate(percent_growth_since_previous_year = round((n/lag(n) - 1) * 100, 2)) %>% 
+  rename(year = name, active_journals = n) %>% 
+  ggplot(aes(year, percent_growth_since_previous_year)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = seq(1980, 2020, 5)) +
+  scale_y_continuous(breaks = seq(0, 35, 5)) +
+  hrbrthemes::theme_ipsum() +
+  labs(
+    x = "Year",
+    y = "OJS Growth Rate (%)"
+  )
+
+ggsave(here::here("ojs_growth_rate_by_year.png"))
+```
+
+
 
 <br/>
 

@@ -97,6 +97,8 @@ df <-
 
 
 ```{r}
+df %>% sample_frac() %>% glimpse()
+
 df_cabell <-
   df %>%
   mutate(
