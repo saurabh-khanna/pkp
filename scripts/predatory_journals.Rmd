@@ -88,11 +88,11 @@ df <-
   df %>% 
   filter(total_record_count > 0) %>% 
   mutate(
-    record_count_from_2019 = record_count_2019 + record_count_2020 + record_count_2021,
-    active = (record_count_from_2019 >= 10),
-    active2019 = (record_count_2019 >= 5),
-    active2020 = (record_count_2020 >= 5),
-    active2021 = (record_count_2021 >= 5)
+    # record_count_from_2019 = record_count_2019 + record_count_2020 + record_count_2021,
+    # active = (record_count_from_2019 >= 10),
+    # active2019 = (record_count_2019 >= 5),
+    active = (record_count_2020 >= 5),
+    # active2021 = (record_count_2021 >= 5)
   ) %>%
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
 
@@ -105,7 +105,7 @@ df <-
 ```{r, eval=FALSE}
 df %>% summarize_all(~ sum(is.na(.)))
 df %>% glimpse()
-df %>% drop_na(country) %>% count(active)
+df %>% drop_na(country) %>% filter(active) %>% distinct(domain)
 ```
 
 
@@ -113,9 +113,25 @@ df %>% drop_na(country) %>% count(active)
 ```{r}
 # predatory matching
 
+#### optional part
+df <-
+  df %>%
+  mutate(
+    issn = str_extract(issn, "[^\n]+"),
+    oai_url = str_extract(oai_url, "[^\n]+"),
+    journal_url = str_extract(oai_url, ".+?(?=oai)"),
+    journal_name = context_name
+  )
+
+df_cabells <- 
+  readxl::read_excel(here::here("data/ojs_journals_09.28.2021.xlsx")) %>% 
+  left_join(df, by = c("issn", "journal_url", "journal_name"))
+####
+
+
 pred_list <- 
-  read_csv("/Users/saurabh/My Drive/GitHub/beall-live/data/df_weekly_publishers.csv") %>% 
-  bind_rows(read_csv("/Users/saurabh/My Drive/GitHub/beall-live/data/df_weekly_standalone.csv")) %>% 
+  read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_publishers.csv") %>% 
+  bind_rows(read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_standalone.csv")) %>% 
   clean_names() %>% 
   remove_empty()
 
@@ -133,17 +149,22 @@ pred_list <-
   distinct(domain, .keep_all = T)
 
 df_pred <- 
-  df %>%
+  df_cabells %>%
   mutate(
     domain = str_replace(domain, "^www.", "")
   ) %>%
   inner_join(pred_list, by = "domain") %>%
   relocate(domain)
 
+df_pred %>% count(active)
+
+df_pred %>% distinct(domain)
 
 # 127 out of 2741 publisher domains (4.6% domains are in the beacon)
 # 684 journals (372 active, 312 inactive) [1.4% active and 2.1% inactive OJS journals]. 118 of these are in DOAJ.
 # US and India
+
+366/25672
 ```
 
 
