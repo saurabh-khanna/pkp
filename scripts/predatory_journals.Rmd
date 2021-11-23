@@ -25,7 +25,7 @@ tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 
 ```{r}
 # Data (May 17, 2021)
-df <- read_csv(here::here("data/jonas/report-latest.csv"))
+df <- read_csv(here::here("data/jonas/beacon-public.csv"))
 
 canada.states <- 
   c("Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon")
@@ -105,6 +105,10 @@ df <-
 ```{r, eval=FALSE}
 df %>% summarize_all(~ sum(is.na(.)))
 df %>% glimpse()
+
+df %>% filter(application == "ojs") %>% count(active) # 25671
+
+df %>% drop_na(country) %>% count(active)
 df %>% drop_na(country) %>% filter(active) %>% distinct(domain)
 ```
 
@@ -130,8 +134,8 @@ df_cabells <-
 
 
 pred_list <- 
-  read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_publishers.csv") %>% 
-  bind_rows(read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_standalone.csv")) %>% 
+  read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_publishers.csv") %>%
+  # bind_rows(read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_standalone.csv")) %>% 
   clean_names() %>% 
   remove_empty()
 
@@ -160,11 +164,22 @@ df_pred %>% count(active)
 
 df_pred %>% distinct(domain)
 
+readxl::read_excel(here::here("data/OJS and PR overlap.xlsx")) %>% 
+  inner_join(df_pred, by = c("issn", "journal_url", "journal_name"))
+
 # 127 out of 2741 publisher domains (4.6% domains are in the beacon)
 # 684 journals (372 active, 312 inactive) [1.4% active and 2.1% inactive OJS journals]. 118 of these are in DOAJ.
 # US and India
 
 366/25672
+
+237-82
+
+912/1380
+
+read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_publishers.csv") %>% tabyl(status)
+
+pred_list %>% count(status)
 ```
 
 
