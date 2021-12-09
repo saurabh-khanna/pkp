@@ -87,6 +87,7 @@ names(df)[length(names(df))] <- "continent"
 df <-
   df %>% 
   filter(total_record_count > 0) %>% 
+  filter(application == "ojs") %>% 
   mutate(
     # record_count_from_2019 = record_count_2019 + record_count_2020 + record_count_2021,
     # active = (record_count_from_2019 >= 10),
@@ -106,7 +107,7 @@ df <-
 df %>% summarize_all(~ sum(is.na(.)))
 df %>% glimpse()
 
-df %>% filter(application == "ojs") %>% count(active) # 25671
+df %>% count(active) # 25671
 
 df %>% drop_na(country) %>% count(active)
 df %>% drop_na(country) %>% filter(active) %>% distinct(domain)
@@ -135,7 +136,7 @@ df_cabells <-
 
 pred_list <- 
   read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_publishers.csv") %>%
-  # bind_rows(read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_standalone.csv")) %>% 
+  bind_rows(read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_standalone.csv")) %>% 
   clean_names() %>% 
   remove_empty()
 
@@ -175,11 +176,12 @@ readxl::read_excel(here::here("data/OJS and PR overlap.xlsx")) %>%
 
 237-82
 
-912/1380
+(1966)/2925
 
 read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_publishers.csv") %>% tabyl(status)
 
-pred_list %>% count(status)
+pred_list %>% 
+  count(status)
 ```
 
 
@@ -213,6 +215,10 @@ df_pred <-
   df_pred %>%
   left_join(df_doaj %>% distinct(domain, doaj), by = "domain") %>% 
   mutate(doaj = if_else(is.na(doaj), FALSE, doaj))
+
+
+df_doaj %>% 
+  anti_join(df, by = "issn")
 ```
 
 

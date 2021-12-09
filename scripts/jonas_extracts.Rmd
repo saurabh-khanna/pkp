@@ -117,6 +117,10 @@ df <-
     active2021 = (record_count_2021 >= 5)
   ) %>%
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
+
+df %>% filter(application == "ojs") %>% count(active2020)
+
+# df <- df %>% filter(application == "ojs", active2020)
 ```
 
 
@@ -555,18 +559,25 @@ df_doaj <-
     ojs = str_detect(platform, "OJS|NEPJOL|AJOL|SEER|OPEN JOURNAL SYSTEM")
   )
 
-# question 1
-df_doaj %>% 
-  filter(ojs) %>% 
-  anti_join(df, by = "issn") %>% 
-  # anti_join(df, by = "domain") %>%
-  # anti_join(df, by = c("journal_title" = "set_spec")) %>%
-  # anti_join(df, by = c("publisher" = "repository_name")) %>%
-  arrange(country, publisher, journal_title) %>% 
-  relocate(country, issn, ojs, publisher, journal_title) %>% 
-  #writexl::write_xlsx(here::here("doaj_journals_not_in_beacon_07.16.2021.xlsx"))
-  count(country) %>% arrange(-n)
+4326/7501
 
+(4326-1051)/4326
+
+# question 1
+df_doaj %>%
+  filter(ojs) %>%
+  anti_join(df, by = "issn") %>% 
+  anti_join(df, by = "domain") %>%
+  #anti_join(df, by = c("journal_title" = "set_spec")) %>%
+  #anti_join(df, by = c("publisher" = "repository_name")) %>%
+  arrange(country, publisher, journal_title) %>% 
+  relocate(country, issn, ojs, publisher, journal_title) #%>% 
+  #writexl::write_xlsx(here::here("doaj_journals_not_in_beacon_07.16.2021.xlsx"))
+  # count(country) %>% arrange(-n)
+```
+
+
+```{r}
 df_doaj %>% 
   filter(ojs) %>% 
   anti_join(df, by = "issn") %>% 
