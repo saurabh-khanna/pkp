@@ -20,6 +20,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly, readxl)
 tld <- read_csv(here::here("data/tld-country.csv"))
 tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
+shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
 ```
 
 # Global
@@ -94,27 +95,88 @@ df <-
 ```
 
 
-```{r}
-df %>% sample_frac() %>% glimpse()
-
-df_cabell <-
+```{r, fig.retina=4}
+# Create global map
+df_world <-
   df %>%
-  mutate(
-    issn = str_extract(issn, "[^\n]+"),
-    oai_url = str_extract(oai_url, "[^\n]+"),
-    journal_url = str_extract(oai_url, ".+?(?=oai)")
+  drop_na(country) %>%
+  mutate(active = 1) %>% 
+  group_by(country, continent) %>%
+  summarize(
+    total = sum(active, na.rm = T),
+  ) %>%
+  ungroup() %>%
+  transmute(
+    country,
+    continent,
+    total = replace_na(total, 0)
+  )
+
+shapefile %>% 
+  clean_names() %>%
+  rename(country = name) %>%
+  left_join(
+    read_csv(here::here("data/nations.csv")) %>% distinct(iso3, income), by = "iso3"
   ) %>% 
-  select(issn, journal_url, journal_name = context_name) %>% 
-  arrange(issn)
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+    country = if_else(str_detect(country, "Korea, Republic of"), "South Korea", country),
+    country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
+    country = if_else(str_detect(country, "Surinam"), "Surinam", country),
+    income = if_else(income == "High income: OECD", "High income", income)
+  ) %>%
+  inner_join(df_world, by = "country") %>% 
+  filter(country != "Antarctica") %>% 
+  mutate(
+    total = replace_na(total, 0),
+    total = pmin(total, 500)
+  ) %>%
+  ggplot() +
+  geom_sf(aes(fill = total), size = 0.3, show.legend = F) +
+  scale_fill_gradientn(
+    breaks = seq(0, 500, 250),
+    colors = RColorBrewer::brewer.pal(n = 9, name = "Blues")
+  ) +
+  theme_void()
 
-
-# df_cabell %>% writexl::write_xlsx(here::here("ojs_journals_09.28.2021.xlsx"))
 ```
 
 
-```{r}
+
+```{r, fig.retina=4}
 # WoS data
-read_table("/Users/saurabh/Downloads/wos_data.txt", na = c("NULL", "NA", "")) %>% clean_names() %>% remove_empty() %>% filter(str_detect(issn, "-"))
+df_wos <-
+  read_table("/Users/saurabh/Downloads/wos_data_original.txt", na = c("NULL", "NA", "")) %>% 
+  clean_names() %>% 
+  remove_empty() %>% 
+  filter(str_detect(issn, "^[0-9]{4}-[0-9]{3}[0-9xX]$")) %>% 
+  distinct(issn)
+
+
+df %>% 
+  mutate(
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_wos, by = "issn") %>% 
+  #write_csv(here::here("ojs_wos_matched_by_issn_journals.csv"))
+  count(country) %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  labs(
+    x = "Country", y = "Number of journals"
+  )
+
+272/25671
 ```
 
 
