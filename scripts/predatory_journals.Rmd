@@ -349,7 +349,7 @@ Intersections:
 
 ```{r}
 expressionInput <- c(ojs_active = 30332, ojs_inactive = 12248, beall = 2741, `ojs_active&ojs_inactive` = 0, `ojs_active&beall` = 406, 
-    `ojs_inactive&beall` = 298, `ojs_active&ojs_inactive&beall` = 0)
+                     `ojs_inactive&beall` = 298, `ojs_active&ojs_inactive&beall` = 0)
 
 upset(fromExpression(expressionInput), order.by = "freq")
 ```
