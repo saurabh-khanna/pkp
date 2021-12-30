@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly, readxl, writexl, UpSetR)
+pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly, readxl, writexl, cowplot)
 tld <- read_csv(here::here("data/tld-country.csv"))
 tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 ```
@@ -161,12 +161,14 @@ df_pred <-
   inner_join(pred_list, by = "domain") %>%
   relocate(domain)
 
-df_pred %>% count(active)
+df_pred %>% count(country) %>% arrange(-n)
 
 df_pred %>% distinct(domain)
 
 readxl::read_excel(here::here("data/OJS and PR overlap.xlsx")) %>% 
-  inner_join(df_pred, by = c("issn", "journal_url", "journal_name"))
+  inner_join(df_pred, by = c("issn", "journal_url", "journal_name")) %>% 
+  count(country) %>% 
+  arrange(-n)
 
 # 127 out of 2741 publisher domains (4.6% domains are in the beacon)
 # 684 journals (372 active, 312 inactive) [1.4% active and 2.1% inactive OJS journals]. 118 of these are in DOAJ.
@@ -183,6 +185,112 @@ read_csv("/Users/saurabh/Everything/GitHub/beall-live/data/df_weekly_publishers.
 pred_list %>% 
   count(status)
 ```
+
+
+```{r, fig.retina=4}
+# figure for john's book chapter
+df_beall_only <-
+  readxl::read_excel(here::here("data/OJS and PR overlap.xlsx")) %>% 
+  anti_join(df_pred, ., by = c("issn", "journal_url", "journal_name")) %>%
+  tabyl(country) %>%
+  as_tibble() %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  transmute(country = fct_inorder(country) %>% fct_rev(), n, percent, id = "Bealls List")
+
+df_bc_both <-
+  readxl::read_excel(here::here("data/OJS and PR overlap.xlsx")) %>% 
+  inner_join(df_pred, by = c("issn", "journal_url", "journal_name")) %>% 
+  tabyl(country) %>%
+  as_tibble() %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  transmute(country = fct_inorder(country) %>% fct_rev(), n, percent, id = "Both")
+
+df_cabell_only <-
+  readxl::read_excel(here::here("data/OJS and PR overlap.xlsx")) %>% 
+  anti_join(df_pred, by = c("issn", "journal_url", "journal_name")) %>% 
+  left_join(df, by = c("issn", "journal_url", "journal_name")) %>% 
+  tabyl(country) %>%
+  as_tibble() %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  transmute(country = fct_inorder(country) %>% fct_rev(), n, percent, id = "Cabells List")
+
+
+# bind_rows(df_beall_only, df_bc_both, df_cabell_only) %>% 
+#   mutate(
+#     country = fct_inorder(country) %>% fct_rev()
+#   ) %>% 
+#   ggplot(aes(country, percent)) +
+#   geom_col() +
+#   facet_wrap(vars(id), ncol=1) +
+#   coord_flip() +
+#   hrbrthemes::theme_ipsum()
+
+p1 <-
+  df_beall_only %>% 
+  ggplot(aes(country, percent)) +
+  geom_col() +
+  geom_text(
+    aes(label = n),
+    nudge_y = 0.005,
+    direction = "x",
+    show.legend = F
+  ) +
+  coord_flip() +
+  theme(axis.text.x = element_text(size = 8)) +
+  hrbrthemes::theme_ipsum() +
+  scale_y_continuous(
+    #breaks = scales::breaks_width(0.03),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  labs(x = "", y = "")
+
+p2 <-
+  df_bc_both %>% 
+  ggplot(aes(country, percent)) +
+  geom_col() +
+  geom_text(
+    aes(label = n),
+    nudge_y = 0.01,
+    direction = "x",
+    show.legend = F
+  ) +
+  coord_flip() +
+  theme(axis.text.x = element_text(size = 8)) +
+  hrbrthemes::theme_ipsum() +
+  scale_y_continuous(
+    #breaks = scales::breaks_width(0.03),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  labs(x = "", y = "")
+
+
+p3 <-
+  df_cabell_only %>% 
+  ggplot(aes(country, percent)) +
+  geom_col() +
+  geom_text(
+    aes(label = n),
+    nudge_y = 0.01,
+    direction = "x",
+    show.legend = F
+  ) +
+  coord_flip() +
+  theme(axis.text.x = element_text(size = 8)) +
+  hrbrthemes::theme_ipsum() +
+  scale_y_continuous(
+    #breaks = scales::breaks_width(0.03),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  labs(x = "", y = "")
+
+plot_grid(p1, p2, p3, labels = c("Beall's List (n=284)", 'Both lists (n=82)', 'Predatory Reports (n=155)'), label_size = 12, ncol=1)
+
+ggsave(here::here("fig_phase2.png"))
+```
+
 
 
 
