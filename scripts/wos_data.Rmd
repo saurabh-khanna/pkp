@@ -155,7 +155,8 @@ df_wos <-
   clean_names() %>% 
   remove_empty() %>% 
   filter(str_detect(issn, "^[0-9]{4}-[0-9]{3}[0-9xX]$")) %>% 
-  distinct(issn)
+  distinct(issn) %>% 
+  drop_na(issn)
 
 
 df %>% 
@@ -163,7 +164,6 @@ df %>%
     issn = str_extract(issn, "[^\n]+")
   ) %>%
   inner_join(df_wos, by = "issn") %>% 
-  #write_csv(here::here("ojs_wos_matched_by_issn_journals.csv"))
   count(country) %>% 
   arrange(-n) %>% 
   head(10) %>% 
@@ -180,6 +180,51 @@ df %>%
 ```
 
 
+
+```{r}
+# Scopus data
+df_scopus <-
+  read_excel(here::here("data/scopus_nov2021.xlsx")) %>%
+  clean_names() %>% 
+  remove_empty() %>%
+  select(issn = print_issn, e_issn, contains("cite_score"), everything()) %>%
+  mutate(issn = if_else(is.na(issn), e_issn, issn)) %>%
+  # mutate(issn = if_else(!is.na(e_issn), e_issn, issn)) %>%
+  mutate_at(vars(contains("cite_score")), ~ as.numeric(.)) %>% 
+  mutate(
+    #issn = str_extract(issn, "[^\n]+"),
+    issn = str_replace(issn, "-", "")
+  ) %>%
+  distinct(issn, .keep_all = T) %>% 
+  drop_na(issn)
+
+
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+"),
+    issn = str_replace(issn, "-", "")
+  ) %>%
+  inner_join(df_scopus, by = "issn") %>%
+  drop_na(country) %>% 
+  count(country) %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  labs(
+    x = "Country", y = "Number of journals"
+  )
+
+
+1307/25671
+
+
+```
 
 
 
