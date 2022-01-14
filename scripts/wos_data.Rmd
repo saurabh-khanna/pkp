@@ -186,7 +186,7 @@ df %>%
 df_scopus <-
   read_excel(here::here("data/scopus_nov2021.xlsx")) %>%
   clean_names() %>% 
-  remove_empty() %>%
+  remove_empty() %>% 
   select(issn = print_issn, e_issn, contains("cite_score"), everything()) %>%
   mutate(issn = if_else(is.na(issn), e_issn, issn)) %>%
   # mutate(issn = if_else(!is.na(e_issn), e_issn, issn)) %>%
@@ -198,6 +198,8 @@ df_scopus <-
   distinct(issn, .keep_all = T) %>% 
   drop_na(issn)
 
+
+df_scopus %>% summary()
 
 df %>% 
   drop_na(issn) %>%
