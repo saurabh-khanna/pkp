@@ -113,6 +113,26 @@ df %>% drop_na(country) %>% count(active) # 25577
 df %>% drop_na(country) %>% filter(active) %>% distinct(domain)
 ```
 
+```{r, eval=FALSE}
+# JUST FOR MIRO (IGNORE OTHERWISE)
+df <-
+  df %>%
+  mutate(
+    issn = str_extract(issn, "[^\n]+"),
+    oai_url = str_extract(oai_url, "[^\n]+"),
+    journal_url = str_extract(oai_url, ".+?(?=oai)"),
+    journal_name = context_name,
+    issn = if_else(issn == "2153-2249", "2153-2257", issn)
+  )
+  
+
+readxl::read_excel(here::here("data/OJS and PR overlap.xlsx")) %>%
+  inner_join(df, by = c("issn", "journal_url", "journal_name")) %>% 
+  select(publisher = repository_name, journal_name, issn, journal_url, admin_email, country, version, total_record_count) %>% 
+  arrange(publisher, journal_name) %>% distinct(admin_email)
+  #writexl::write_xlsx(here::here("ojs_cabells_overlap_for_miroslav_01.14.2022.xlsx"))
+
+```
 
 
 ```{r}
@@ -127,6 +147,8 @@ df <-
     journal_url = str_extract(oai_url, ".+?(?=oai)"),
     journal_name = context_name
   )
+
+
 
 df_cabells <- 
   readxl::read_excel(here::here("data/ojs_journals_09.28.2021.xlsx")) %>% 
