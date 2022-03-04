@@ -10,6 +10,7 @@
 *.zip
 *.sql
 *.sql.gz
+pkpbeacon.txt
 data/
 jupyter/
 .ipynb_checkpoints/

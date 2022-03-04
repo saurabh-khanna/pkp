@@ -95,6 +95,22 @@ df <-
 ```
 
 
+```{r}
+## OMP for John
+df %>% 
+  filter(application == "omp") %>% 
+  remove_empty() %>% 
+  remove_constant() %>% 
+  mutate(
+    oai_url = str_extract(oai_url, "[^\n]+"),
+    url = str_extract(oai_url, ".+?(?=oai)")
+  ) %>% 
+  relocate(country, context_name, url, set_spec, version,total_record_count) %>%
+  arrange(country, context_name) %>% glimpse()
+  #write_csv(here::here("omp_active_for_john.csv"))
+```
+
+
 ```{r, fig.retina=4}
 # Create global map
 df_world <-
@@ -151,7 +167,7 @@ shapefile %>%
 ```{r, fig.retina=4}
 # WoS data
 df_wos <-
-  read_table("/Users/saurabh/Downloads/wos_data_original.txt", na = c("NULL", "NA", "")) %>% 
+  read_table(here::here("data/wos_data_original.txt"), na = c("NULL", "NA", "")) %>% 
   clean_names() %>% 
   remove_empty() %>% 
   filter(str_detect(issn, "^[0-9]{4}-[0-9]{3}[0-9xX]$")) %>% 
@@ -176,7 +192,7 @@ df %>%
     x = "Country", y = "Number of journals"
   )
 
-272/25671
+272/18427
 ```
 
 
@@ -223,10 +239,45 @@ df %>%
   )
 
 
-1307/25671
-
-
+1307/41934
 ```
 
+
+
+```{r}
+# Dimensions data
+df_dimensions <-
+  read_excel(here::here("data/journals_dimensions.xlsx")) %>%
+  clean_names() %>% 
+  remove_empty() %>% 
+  select(issn = issn_print, e_issn = issn_e, everything()) %>%
+  mutate(issn = if_else(issn == "NULL", e_issn, issn)) %>%
+  # mutate(issn = if_else(e_issn != "NULL", e_issn, issn)) %>%
+  mutate_at(vars(contains("cite_score")), ~ as.numeric(.)) %>% 
+  distinct(issn, .keep_all = T) %>% 
+  drop_na(issn)
+
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_dimensions, by = "issn") %>%
+  drop_na(country) %>% 
+  count(country) %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  labs(
+    x = "Country", y = "Number of journals"
+  )
+
+9114/72906
+```
 
 
