@@ -26,7 +26,7 @@ tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 
 ```{r}
 # Data (Aug 5, 2021)
-df <- read_csv(here::here("data/jonas/beacon-public.csv"))
+df <- read_csv(here::here("data/jonas/report-latest.csv"))
 
 canada.states <- 
   c("Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon")
@@ -85,14 +85,22 @@ df <- df %>% bind_cols(continents)
 # rename last column to `continent`
 names(df)[length(names(df))] <- "continent"
 
-df <-
+df_2020 <-
   df %>% 
   filter(total_record_count > 0) %>%
-  filter(application == "ojs") %>% 
-  mutate(active = (record_count_2020 >= 5)) %>% 
+  filter(application == "ojs") %>%
+  mutate(active = (record_count_2020 >= 5)) %>% filter(active) %>% 
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
 
-df %>% count(active)
+df_2021 <-
+  df %>% 
+  filter(total_record_count > 0) %>%
+  filter(application == "ojs") %>%
+  mutate(active = (record_count_2021 >= 5)) %>% filter(active) %>% 
+  distinct(oai_url, repository_name, set_spec, .keep_all = T)
+
+df_2021 %>% 
+  count(country) %>% arrange(-n)
 ```
 
 

@@ -1,5 +1,5 @@
 ---
-title: "For Cabells"
+title: "Overlaps"
 date: "Updated: `r format(Sys.Date(), format='%B %d %Y')`"
 output:
   html_document:
@@ -94,87 +94,25 @@ df <-
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
 ```
 
-
-```{r}
-## OMP for John
-df %>% 
-  filter(application == "omp") %>% 
-  remove_empty() %>% 
-  remove_constant() %>% 
-  mutate(
-    oai_url = str_extract(oai_url, "[^\n]+"),
-    url = str_extract(oai_url, ".+?(?=oai)")
-  ) %>% 
-  relocate(country, context_name, url, set_spec, version,total_record_count) %>%
-  arrange(country, context_name) %>% glimpse()
-  #write_csv(here::here("omp_active_for_john.csv"))
-```
-
+## WoS data
 
 ```{r, fig.retina=4}
-# Create global map
-df_world <-
-  df %>%
-  drop_na(country) %>%
-  mutate(active = 1) %>% 
-  group_by(country, continent) %>%
-  summarize(
-    total = sum(active, na.rm = T),
-  ) %>%
-  ungroup() %>%
-  transmute(
-    country,
-    continent,
-    total = replace_na(total, 0)
-  )
-
-shapefile %>% 
-  clean_names() %>%
-  rename(country = name) %>%
-  left_join(
-    read_csv(here::here("data/nations.csv")) %>% distinct(iso3, income), by = "iso3"
-  ) %>% 
-  mutate(
-    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
-    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
-    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
-    country = if_else(country == "Congo", "Republic of the Congo", country),
-    country = if_else(country == "Viet Nam", "Vietnam", country),
-    country = if_else(str_detect(country, "Iran"), "Iran", country),
-    country = if_else(str_detect(country, "Korea, Republic of"), "South Korea", country),
-    country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
-    country = if_else(str_detect(country, "Surinam"), "Surinam", country),
-    income = if_else(income == "High income: OECD", "High income", income)
-  ) %>%
-  inner_join(df_world, by = "country") %>% 
-  filter(country != "Antarctica") %>% 
-  mutate(
-    total = replace_na(total, 0),
-    total = pmin(total, 500)
-  ) %>%
-  ggplot() +
-  geom_sf(aes(fill = total), size = 0.3, show.legend = F) +
-  scale_fill_gradientn(
-    breaks = seq(0, 500, 250),
-    colors = RColorBrewer::brewer.pal(n = 9, name = "Blues")
-  ) +
-  theme_void()
-
-```
-
-
-
-```{r, fig.retina=4}
-# WoS data
 df_wos <-
-  read_table(here::here("data/wos_data_original.txt"), na = c("NULL", "NA", "")) %>% 
+  read_table(here::here("data/overlaps/wos_data_simon.txt"), na = c("NULL", "NA", "")) %>% 
   clean_names() %>% 
   remove_empty() %>% 
   filter(str_detect(issn, "^[0-9]{4}-[0-9]{3}[0-9xX]$")) %>% 
   distinct(issn) %>% 
   drop_na(issn)
 
+# count
+df %>% 
+  mutate(
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_wos, by = "issn")
 
+# overlap by country
 df %>% 
   mutate(
     issn = str_extract(issn, "[^\n]+")
@@ -192,7 +130,8 @@ df %>%
     x = "Country", y = "Number of journals"
   )
 
-272/18427
+279/22810 # ojs with unique issn
+279/24510 # wos
 ```
 
 
@@ -200,7 +139,7 @@ df %>%
 ```{r}
 # Scopus data
 df_scopus <-
-  read_excel(here::here("data/scopus_nov2021.xlsx")) %>%
+  read_excel(here::here("data/overlaps/scopus_nov2021.xlsx")) %>%
   clean_names() %>% 
   remove_empty() %>% 
   select(issn = print_issn, e_issn, contains("cite_score"), everything()) %>%
@@ -215,7 +154,14 @@ df_scopus <-
   drop_na(issn)
 
 
-df_scopus %>% summary()
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+"),
+    issn = str_replace(issn, "-", "")
+  ) %>%
+  inner_join(df_scopus, by = "issn")
 
 df %>% 
   drop_na(issn) %>%
@@ -239,7 +185,8 @@ df %>%
   )
 
 
-1307/41934
+1307/22810 # ojs
+1307/41934 # scopus
 ```
 
 
@@ -247,7 +194,7 @@ df %>%
 ```{r}
 # Dimensions data
 df_dimensions <-
-  read_excel(here::here("data/journals_dimensions.xlsx")) %>%
+  read_excel(here::here("data/overlaps/journals_dimensions.xlsx")) %>%
   clean_names() %>% 
   remove_empty() %>% 
   select(issn = issn_print, e_issn = issn_e, everything()) %>%
@@ -256,6 +203,14 @@ df_dimensions <-
   mutate_at(vars(contains("cite_score")), ~ as.numeric(.)) %>% 
   distinct(issn, .keep_all = T) %>% 
   drop_na(issn)
+
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_dimensions, by = "issn")
 
 df %>% 
   drop_na(issn) %>%
@@ -277,7 +232,50 @@ df %>%
     x = "Country", y = "Number of journals"
   )
 
-9114/72906
+9114/22810 # ojs
+9114/72906 # dimensions
 ```
 
+
+
+```{r}
+# EBSCO Host
+df_ebsco <-
+  read_excel(here::here("data/overlaps/ebscohost.xls")) %>%
+  clean_names() %>% 
+  remove_empty() %>% 
+  distinct(issn) %>% 
+  drop_na(issn)
+
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_ebsco, by = "issn")
+
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_ebsco, by = "issn") %>%
+  drop_na(country) %>% 
+  count(country) %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  labs(
+    x = "Country", y = "Number of journals"
+  )
+
+771/22810
+771/17874
+```
 
