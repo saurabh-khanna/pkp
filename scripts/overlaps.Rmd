@@ -90,9 +90,94 @@ df <-
   df %>% 
   filter(total_record_count > 0) %>%
   filter(application == "ojs") %>%
-  filter(record_count_2020 >= 5) %>%
+  # filter((record_count_2017 + record_count_2018 + record_count_2019 + record_count_2020 + record_count_2016) >= 100) %>%
+  filter(record_count_2020 >= 5) %>% 
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
 ```
+
+
+```{r, eval = F}
+# doaj merge for juan
+df_doaj <- 
+  read_excel(here::here("data/kevin/kevin_doaj.xlsx")) %>% 
+  clean_names() %>% 
+  remove_empty()
+
+df_doaj <-
+  bind_cols(
+    df_doaj,
+    df_doaj %>% pull(journal_url) %>% domain() %>% tld_extract()
+  ) %>%
+  mutate(
+    platform = platform_host_or_aggregator %>% str_trim() %>% str_to_upper(),
+    journal_title = journal_title %>% str_trim() %>% str_to_upper(),
+    publisher = publisher %>% str_trim() %>% str_to_upper(),
+    country = country_of_publisher %>% str_trim(),
+    issn = journal_eissn_online_version %>% str_trim(),
+    ojs = str_detect(platform, "OJS|NEPJOL|AJOL|SEER|OPEN JOURNAL SYSTEM"),
+    domain = str_replace(domain, "^www.", ""),
+    doaj = TRUE
+  )
+
+
+df %>% 
+  mutate(
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_doaj %>% distinct(issn) %>% drop_na(issn), by = "issn") %>% 
+  bind_rows(
+    df %>% 
+      mutate(
+        issn = str_extract(issn, "[^\n]+")
+      ) %>%
+      inner_join(df_doaj %>% distinct(domain) %>% drop_na(domain), by = "domain")
+  ) %>% 
+  distinct() %>% 
+  write_csv(here::here("data/ojs_doaj_match_for_juan_05.17.22.csv"))
+```
+
+
+```{r, eval=F}
+# rough - extract domains for gscholar
+
+df %>%
+  separate(oai_url, c("url1", "url2"), "\n") %>% 
+  remove_empty() %>% 
+  rename(oai_url = url1) %>% 
+  filter(!str_detect(oai_url, "\\?page=")) %>% 
+  transmute(
+    url = str_replace(oai_url, "index/oai", set_spec),
+    url = str_replace(url, "^https://", ""),
+    url = str_replace(url, "^http://", ""),
+    url = str_replace(url, "^www108.", ""),
+    url = str_replace(url, "^www5.", ""),
+    url = str_replace(url, "^www3.", ""),
+    url = str_replace(url, "^www2.", ""),
+    url = str_replace(url, "^www.", ""),
+  ) %>%
+  bind_rows(
+    df %>%
+      separate(oai_url, c("url1", "url2"), "\n") %>% 
+      remove_empty() %>% 
+      rename(oai_url = url1) %>% 
+      filter(str_detect(oai_url, "\\?page=")) %>% 
+      transmute(
+        url = str_replace(oai_url, "oai$", set_spec),
+        url = str_replace(url, "^https://", ""),
+        url = str_replace(url, "^http://", ""),
+        url = str_replace(url, "^www108.", ""),
+        url = str_replace(url, "^www5.", ""),
+        url = str_replace(url, "^www3.", ""),
+        url = str_replace(url, "^www2.", ""),
+        url = str_replace(url, "^www.", ""),
+      ), .
+  ) %>% 
+  distinct() #%>% 
+  #write_csv(here::here("data/gscholar_urls.csv"))
+```
+
+
+
 
 ## WoS data
 
@@ -192,6 +277,10 @@ df %>%
 
 
 ```{r}
+# df
+df
+
+
 # Dimensions data
 df_dimensions <-
   read_excel(here::here("data/overlaps/journals_dimensions.xlsx")) %>%
@@ -234,6 +323,16 @@ df %>%
 
 9114/22810 # ojs
 9114/72906 # dimensions
+
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  anti_join(df_dimensions, ., by = "issn") %>% 
+  count(publisher_name) %>% 
+  arrange(-n)
 ```
 
 
