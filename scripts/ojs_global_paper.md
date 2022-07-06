@@ -84,9 +84,10 @@ Total active OJS journals:
 
     df %>% count()
 
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["n"],"name":[1],"type":["int"],"align":["right"]}],"data":[{"1":"25671"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
-  </script>
+    ## # A tibble: 1 × 1
+    ##       n
+    ##   <int>
+    ## 1 25671
 
 ------------------------------------------------------------------------
 
@@ -114,9 +115,10 @@ Total overlap:
       inner_join(df_wos, by = "issn") %>% 
       count()
 
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["n"],"name":[1],"type":["int"],"align":["right"]}],"data":[{"1":"279"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
-  </script>
+    ## # A tibble: 1 × 1
+    ##       n
+    ##   <int>
+    ## 1   279
 
 Top 10 countries in overlap:
 
@@ -169,9 +171,10 @@ Total overlap:
       inner_join(df_scopus, by = "issn") %>% 
       count()
 
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["n"],"name":[1],"type":["int"],"align":["right"]}],"data":[{"1":"1307"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
-  </script>
+    ## # A tibble: 1 × 1
+    ##       n
+    ##   <int>
+    ## 1  1307
 
 Top 10 countries in overlap:
 
@@ -222,9 +225,10 @@ Total overlap:
       inner_join(df_dimensions, by = "issn") %>% 
       count()
 
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["n"],"name":[1],"type":["int"],"align":["right"]}],"data":[{"1":"9114"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
-  </script>
+    ## # A tibble: 1 × 1
+    ##       n
+    ##   <int>
+    ## 1  9114
 
 Top 10 countries in overlap:
 
@@ -271,9 +275,10 @@ Total Overlap:
       inner_join(df_ebsco, by = "issn") %>% 
       count()
 
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["n"],"name":[1],"type":["int"],"align":["right"]}],"data":[{"1":"771"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
-  </script>
+    ## # A tibble: 1 × 1
+    ##       n
+    ##   <int>
+    ## 1   771
 
 Top 10 countries in overlap:
 
@@ -392,9 +397,10 @@ Total overlap:
       filter(present) %>% 
       count()
 
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":["n"],"name":[1],"type":["int"],"align":["right"]}],"data":[{"1":"19810"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
-  </script>
+    ## # A tibble: 1 × 1
+    ##       n
+    ##   <int>
+    ## 1 19810
 
 Top 10 countries in overlap:
 

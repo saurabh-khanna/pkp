@@ -4,7 +4,6 @@ author: "Public Knowledge Project"
 date: "Updated: `r format(Sys.Date(), format='%B %d, %Y')`"
 output:
   md_document:
-    df_print: paged
     toc: true
     toc_depth: 6
     number_sections: no
