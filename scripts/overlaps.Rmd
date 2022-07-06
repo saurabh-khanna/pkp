@@ -97,43 +97,7 @@ df <-
 
 
 ```{r, eval = F}
-# doaj merge for juan
-df_doaj <- 
-  read_excel(here::here("data/kevin/kevin_doaj.xlsx")) %>% 
-  clean_names() %>% 
-  remove_empty()
-
-df_doaj <-
-  bind_cols(
-    df_doaj,
-    df_doaj %>% pull(journal_url) %>% domain() %>% tld_extract()
-  ) %>%
-  mutate(
-    platform = platform_host_or_aggregator %>% str_trim() %>% str_to_upper(),
-    journal_title = journal_title %>% str_trim() %>% str_to_upper(),
-    publisher = publisher %>% str_trim() %>% str_to_upper(),
-    country = country_of_publisher %>% str_trim(),
-    issn = journal_eissn_online_version %>% str_trim(),
-    ojs = str_detect(platform, "OJS|NEPJOL|AJOL|SEER|OPEN JOURNAL SYSTEM"),
-    domain = str_replace(domain, "^www.", ""),
-    doaj = TRUE
-  )
-
-
-df %>% 
-  mutate(
-    issn = str_extract(issn, "[^\n]+")
-  ) %>%
-  inner_join(df_doaj %>% distinct(issn) %>% drop_na(issn), by = "issn") %>% 
-  bind_rows(
-    df %>% 
-      mutate(
-        issn = str_extract(issn, "[^\n]+")
-      ) %>%
-      inner_join(df_doaj %>% distinct(domain) %>% drop_na(domain), by = "domain")
-  ) %>% 
-  distinct() %>% 
-  write_csv(here::here("data/ojs_doaj_match_for_juan_05.17.22.csv"))
+df %>% glimpse()
 ```
 
 
@@ -146,6 +110,7 @@ df %>%
   rename(oai_url = url1) %>% 
   filter(!str_detect(oai_url, "\\?page=")) %>% 
   transmute(
+    country, total_record_count, context_name,
     url = str_replace(oai_url, "index/oai", set_spec),
     url = str_replace(url, "^https://", ""),
     url = str_replace(url, "^http://", ""),
@@ -162,6 +127,7 @@ df %>%
       rename(oai_url = url1) %>% 
       filter(str_detect(oai_url, "\\?page=")) %>% 
       transmute(
+        country, total_record_count, context_name,
         url = str_replace(oai_url, "oai$", set_spec),
         url = str_replace(url, "^https://", ""),
         url = str_replace(url, "^http://", ""),
@@ -176,6 +142,154 @@ df %>%
   #write_csv(here::here("data/gscholar_urls.csv"))
 ```
 
+
+```{r, fig.retina=4}
+df_gscholar <- 
+  read_csv(here::here("scripts/gscholar_urls_mapped.csv")) %>% 
+  select(-result_json) %>% 
+  mutate(n_results = parse_integer(n_results))
+
+df_gscholar <-
+  df %>%
+  separate(oai_url, c("url1", "url2"), "\n") %>% 
+  remove_empty() %>% 
+  rename(oai_url = url1) %>% 
+  filter(!str_detect(oai_url, "\\?page=")) %>% 
+  transmute(
+    country, total_record_count, context_name,
+    url = str_replace(oai_url, "index/oai", set_spec),
+    url = str_replace(url, "^https://", ""),
+    url = str_replace(url, "^http://", ""),
+    url = str_replace(url, "^www108.", ""),
+    url = str_replace(url, "^www5.", ""),
+    url = str_replace(url, "^www3.", ""),
+    url = str_replace(url, "^www2.", ""),
+    url = str_replace(url, "^www.", ""),
+  ) %>%
+  bind_rows(
+    df %>%
+      separate(oai_url, c("url1", "url2"), "\n") %>% 
+      remove_empty() %>% 
+      rename(oai_url = url1) %>% 
+      filter(str_detect(oai_url, "\\?page=")) %>% 
+      transmute(
+        country, total_record_count, context_name,
+        url = str_replace(oai_url, "oai$", set_spec),
+        url = str_replace(url, "^https://", ""),
+        url = str_replace(url, "^http://", ""),
+        url = str_replace(url, "^www108.", ""),
+        url = str_replace(url, "^www5.", ""),
+        url = str_replace(url, "^www3.", ""),
+        url = str_replace(url, "^www2.", ""),
+        url = str_replace(url, "^www.", ""),
+      ), .
+  ) %>% 
+  distinct() %>% 
+  inner_join(df_gscholar, by = "url")
+
+df_gscholar %>% 
+  mutate(present = n_results > 0) %>%
+  #tabyl(present) %>% 
+  filter(present) %>% 
+  count(country) %>% 
+  arrange(-n) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  head(20) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  scale_y_continuous(breaks = scales::breaks_width(1000)) +
+  theme_minimal() +
+  coord_flip() +
+  labs(x = "Country", y = "Total journals")
+  
+
+df_gscholar %>%
+  summarize_if(is.numeric, ~ mean(., na.rm = TRUE))
+
+df_gscholar %>% glimpse()
+
+2552351/19810
+
+df_gscholar %>%
+  left_join(read_csv(here::here("scripts/gscholar_citations.csv")), by = "url") %>% 
+  arrange(-n_citations) %>% 
+  filter(n_results > 0) %>% 
+  count(n_citations > 0)
+
+1276/19810
+```
+
+
+```{r}
+# find where domains work but urls dont
+df_temp <-
+  df_gscholar %>% 
+  select(journal_name = context_name, journal_url = url, ojs_article_count = total_record_count, scholar_article_count = n_results) %>%
+  mutate(
+    present_in_scholar = if_else(scholar_article_count > 0, 1L, 0L) %>% replace_na(0L),
+    scholar_article_count = replace_na(scholar_article_count, 0L)
+  )
+
+df_temp <-
+  bind_cols(
+    df_temp,
+    domain = df_temp %>% pull(journal_url) %>% domain()
+  )
+
+df_temp %>% glimpse()
+
+df_temp %>% 
+  group_by(domain) %>% 
+  summarize(present = mean(present_in_scholar, na.rm = T)) %>% summary()
+  arrange(present) %>% 
+  filter(present > 0)
+
+df_temp %>% 
+  filter(domain == "arcticreview.no") %>% 
+  select(journal_url, present_in_scholar)
+```
+
+
+```{r, fig.retina=4}
+# histograms
+
+# number of articles
+df_gscholar %>%
+  left_join(read_csv(here::here("scripts/gscholar_citations.csv")), by = "url") %>%
+  mutate(n_results = pmin(n_results, 500)) %>% 
+  ggplot(aes(n_results)) +
+  geom_histogram(binwidth = 10, color = "black", alpha = 0.75) +
+  scale_x_continuous(labels = c("0", "100", "200", "300", "400", "500+")) +
+  hrbrthemes::theme_ipsum() +
+  labs(
+    x = "Number of articles",
+    y = "Number of journals"
+  )
+
+# number of citations on first gscholar page
+df_gscholar %>%
+  left_join(read_csv(here::here("scripts/gscholar_citations.csv")), by = "url") %>%
+  mutate(n_citations = pmin(n_citations, 500)) %>% 
+  ggplot(aes(n_citations)) +
+  geom_histogram(binwidth = 10, color = "black", alpha = 0.75) +
+  scale_x_continuous(labels = c("0", "100", "200", "300", "400", "500+")) +
+  hrbrthemes::theme_ipsum() +
+  labs(
+    x = "Number of citations on first page",
+    y = "Number of journals"
+  )
+
+# for anurag
+df_gscholar %>% 
+  select(journal_name = context_name, journal_url = url, ojs_article_count = total_record_count, scholar_article_count = n_results) %>%
+  mutate(
+    present_in_scholar = if_else(scholar_article_count > 0, 1L, 0L) %>% replace_na(0L),
+    scholar_article_count = replace_na(scholar_article_count, 0L)
+  ) %>% glimpse()
+  write_csv(here::here("data/gscholar_ojs_mapping_06.12.2022.csv"))
+  
+12953/19810
+```
 
 
 

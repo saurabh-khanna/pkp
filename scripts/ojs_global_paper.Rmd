@@ -1,0 +1,461 @@
+---
+title: "Assessing OJS overlaps with scientometric databases"
+author: "Public Knowledge Project"
+date: "Updated: `r format(Sys.Date(), format='%B %d, %Y')`"
+output:
+  md_document:
+    df_print: paged
+    toc: true
+    toc_depth: 6
+    number_sections: no
+---
+
+---
+
+```{r setup, include=FALSE}
+# knitr options
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+# Libraries
+pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly, readxl)
+
+# raw beacon data
+df <- read_csv(here::here("data/beacon-public.csv")) 
+
+# ancillary data and vectors for cleaning
+iso_to_name <- read_csv(here::here("data/country-iso3166-to-name.csv"))
+
+canada.states <- 
+  c(
+    "Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon"
+  )
+```
+
+
+## Cleaning raw beacon data
+
+```{r}
+# Cleaning oai urls
+df <- 
+  df %>% 
+  mutate(oai_url = if_else(str_detect(oai_url, "^//"), str_c("http:", oai_url), oai_url))
+
+
+# Getting domain, tld, and merging in country names
+df <-  
+  bind_cols(
+    df,
+    df %>% pull(oai_url) %>% domain() %>% tld_extract()
+  ) %>% 
+  mutate(country_consolidated = str_to_lower(country_consolidated) %>% str_trim()) %>% 
+  left_join(iso_to_name, by = c("country_consolidated" = "tld"))
+
+
+# Cleaning country names
+df <-
+  df %>% 
+  mutate(
+    country = country_clean,
+    country = if_else(country == "Washington (State)", "United States", country),
+    country = if_else(str_detect(country, "United States|New York|District of Columbia"), "United States", country),
+    country = if_else(country %in% state.name, "United States", country),
+    country = if_else(country %in% canada.states, "Canada", country),
+    country = if_else(str_detect(country, "China"), "China", country),
+    country = if_else(str_detect(country, "Armenia"), "Armenia", country),
+    country = if_else(str_detect(country, "Georgia"), "Georgia", country),
+    country = if_else(str_detect(country, "Australia|New South Wales|Queensland|Victoria"), "Australia", country),
+    country = if_else(str_detect(country, "England|British"), "United Kingdom", country),
+    country = if_else(str_detect(country, "Russia|Soviet Union"), "Russia", country),
+    country = if_else(str_detect(country, "Palestine"), "Palestine", country),
+    country = if_else(country == "Korea (South)", "South Korea", country)
+  ) %>% 
+  select(-country_clean, -country_marc, -country_issn, -country_tld, -country_ip)
+
+
+# Mapping countries to continents
+continents <-
+  df %>%
+  pull(country) %>% 
+  countrycode(origin = "country.name", destination = "continent")
+
+df <- df %>% bind_cols(continents)
+
+# Rename last column to `continent`
+names(df)[length(names(df))] <- "continent"
+
+# Filter to active OJS journals
+df <-
+  df %>% 
+  filter(application == "ojs", record_count_2020 >= 5) %>% 
+  distinct(oai_url, repository_name, set_spec, .keep_all = T)
+```
+
+Total active OJS journals:
+
+```{r}
+df %>% count()
+```
+
+
+---
+
+<br/><br/>
+
+## Assessing overlaps
+
+### Web of Science
+
+Total overlap:
+
+```{r, fig.retina=4}
+df_wos <-
+  read_table(here::here("data/overlaps/wos_data_simon.txt"), na = c("NULL", "NA", "")) %>% 
+  clean_names() %>% 
+  remove_empty() %>% 
+  filter(str_detect(issn, "^[0-9]{4}-[0-9]{3}[0-9xX]$")) %>% 
+  distinct(issn) %>% 
+  drop_na(issn)
+
+# total overlap
+df %>% 
+  mutate(
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_wos, by = "issn") %>% 
+  count()
+```
+
+Top 10 countries in overlap:
+
+```{r}
+# top 10 countries in overlap
+df %>% 
+  mutate(
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_wos, by = "issn") %>% 
+  count(country) %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  labs(
+    x = "Country", y = "Number of journals"
+  )
+```
+
+
+### Scopus
+
+Total overlap:
+
+```{r}
+# Scopus data
+df_scopus <-
+  read_excel(here::here("data/overlaps/scopus_nov2021.xlsx")) %>%
+  clean_names() %>% 
+  remove_empty() %>% 
+  select(issn = print_issn, e_issn, contains("cite_score"), everything()) %>%
+  mutate(issn = if_else(is.na(issn), e_issn, issn)) %>%
+  mutate_at(vars(contains("cite_score")), ~ as.numeric(.)) %>% 
+  mutate(
+    issn = str_replace(issn, "-", "")
+  ) %>%
+  distinct(issn, .keep_all = T) %>% 
+  drop_na(issn)
+
+# total overlap
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+"),
+    issn = str_replace(issn, "-", "")
+  ) %>%
+  inner_join(df_scopus, by = "issn") %>% 
+  count()
+```
+
+Top 10 countries in overlap:
+
+```{r}
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+"),
+    issn = str_replace(issn, "-", "")
+  ) %>%
+  inner_join(df_scopus, by = "issn") %>%
+  drop_na(country) %>% 
+  count(country) %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  labs(
+    x = "Country", y = "Number of journals"
+  )
+```
+
+
+### Dimensions
+
+Total overlap:
+
+```{r}
+# Dimensions data
+df_dimensions <-
+  read_excel(here::here("data/overlaps/journals_dimensions.xlsx")) %>%
+  clean_names() %>% 
+  remove_empty() %>% 
+  select(issn = issn_print, e_issn = issn_e, everything()) %>%
+  mutate(issn = if_else(issn == "NULL", e_issn, issn)) %>%
+  mutate_at(vars(contains("cite_score")), ~ as.numeric(.)) %>% 
+  distinct(issn, .keep_all = T) %>% 
+  drop_na(issn)
+
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_dimensions, by = "issn") %>% 
+  count()
+```
+
+Top 10 countries in overlap:
+
+```{r}
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_dimensions, by = "issn") %>%
+  drop_na(country) %>% 
+  count(country) %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  labs(
+    x = "Country", y = "Number of journals"
+  )
+```
+
+### EBSCO Host
+
+Total Overlap:
+
+```{r}
+# EBSCO Host
+df_ebsco <-
+  read_excel(here::here("data/overlaps/ebscohost.xls")) %>%
+  clean_names() %>% 
+  remove_empty() %>% 
+  distinct(issn) %>% 
+  drop_na(issn)
+
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_ebsco, by = "issn") %>% 
+  count()
+```
+
+Top 10 countries in overlap:
+
+```{r}
+df %>% 
+  drop_na(issn) %>%
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  inner_join(df_ebsco, by = "issn") %>%
+  drop_na(country) %>% 
+  count(country) %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  hrbrthemes::theme_ipsum() +
+  coord_flip() +
+  labs(
+    x = "Country", y = "Number of journals"
+  )
+```
+
+### Google Scholar
+
+```{r, eval=F}
+# Extract URLs for gscholar script implemented in python
+
+df %>%
+  separate(oai_url, c("url1", "url2"), "\n") %>% 
+  remove_empty() %>% 
+  rename(oai_url = url1) %>% 
+  filter(!str_detect(oai_url, "\\?page=")) %>% 
+  transmute(
+    country, total_record_count, context_name,
+    url = str_replace(oai_url, "index/oai", set_spec),
+    url = str_replace(url, "^https://", ""),
+    url = str_replace(url, "^http://", ""),
+    url = str_replace(url, "^www108.", ""),
+    url = str_replace(url, "^www5.", ""),
+    url = str_replace(url, "^www3.", ""),
+    url = str_replace(url, "^www2.", ""),
+    url = str_replace(url, "^www.", ""),
+  ) %>%
+  bind_rows(
+    df %>%
+      separate(oai_url, c("url1", "url2"), "\n") %>% 
+      remove_empty() %>% 
+      rename(oai_url = url1) %>% 
+      filter(str_detect(oai_url, "\\?page=")) %>% 
+      transmute(
+        country, total_record_count, context_name,
+        url = str_replace(oai_url, "oai$", set_spec),
+        url = str_replace(url, "^https://", ""),
+        url = str_replace(url, "^http://", ""),
+        url = str_replace(url, "^www108.", ""),
+        url = str_replace(url, "^www5.", ""),
+        url = str_replace(url, "^www3.", ""),
+        url = str_replace(url, "^www2.", ""),
+        url = str_replace(url, "^www.", ""),
+      ), .
+  ) %>% 
+  write_csv(here::here("data/gscholar_urls.csv"))
+```
+
+
+Total overlap:
+
+```{r, fig.retina=4}
+# Read in python processed google scholar URLs
+
+df_gscholar <- 
+  read_csv(here::here("scripts/gscholar_urls_mapped.csv")) %>% 
+  select(-result_json) %>% 
+  mutate(n_results = parse_integer(n_results))
+
+df_gscholar <-
+  df %>%
+  separate(oai_url, c("url1", "url2"), "\n") %>% 
+  remove_empty() %>% 
+  rename(oai_url = url1) %>% 
+  filter(!str_detect(oai_url, "\\?page=")) %>% 
+  transmute(
+    country, total_record_count, context_name,
+    url = str_replace(oai_url, "index/oai", set_spec),
+    url = str_replace(url, "^https://", ""),
+    url = str_replace(url, "^http://", ""),
+    url = str_replace(url, "^www108.", ""),
+    url = str_replace(url, "^www5.", ""),
+    url = str_replace(url, "^www3.", ""),
+    url = str_replace(url, "^www2.", ""),
+    url = str_replace(url, "^www.", ""),
+  ) %>%
+  bind_rows(
+    df %>%
+      separate(oai_url, c("url1", "url2"), "\n") %>% 
+      remove_empty() %>% 
+      rename(oai_url = url1) %>% 
+      filter(str_detect(oai_url, "\\?page=")) %>% 
+      transmute(
+        country, total_record_count, context_name,
+        url = str_replace(oai_url, "oai$", set_spec),
+        url = str_replace(url, "^https://", ""),
+        url = str_replace(url, "^http://", ""),
+        url = str_replace(url, "^www108.", ""),
+        url = str_replace(url, "^www5.", ""),
+        url = str_replace(url, "^www3.", ""),
+        url = str_replace(url, "^www2.", ""),
+        url = str_replace(url, "^www.", ""),
+      ), .
+  ) %>% 
+  distinct() %>% 
+  inner_join(df_gscholar, by = "url")
+
+# total overlap
+df_gscholar %>% 
+  mutate(present = n_results > 0) %>%
+  filter(present) %>% 
+  count()
+```
+
+Top 10 countries in overlap:
+
+```{r}
+# top 10 countries in overlap
+df_gscholar %>% 
+  mutate(present = n_results > 0) %>%
+  filter(present) %>% 
+  count(country) %>% 
+  arrange(-n) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  head(10) %>% 
+  ggplot(aes(country, n)) +
+  geom_col() +
+  scale_y_continuous(breaks = scales::breaks_width(1000)) +
+  theme_minimal() +
+  coord_flip() +
+  labs(x = "Country", y = "Total journals")
+```
+
+
+Number of articles:
+
+```{r, fig.retina=4}
+# number of articles
+df_gscholar %>%
+  left_join(read_csv(here::here("scripts/gscholar_citations.csv")), by = "url") %>%
+  mutate(n_results = pmin(n_results, 500)) %>% 
+  ggplot(aes(n_results)) +
+  geom_histogram(binwidth = 10, color = "black", alpha = 0.75) +
+  scale_x_continuous(labels = c("0", "100", "200", "300", "400", "500+")) +
+  hrbrthemes::theme_ipsum() +
+  labs(
+    x = "Number of articles",
+    y = "Number of journals"
+  )
+```
+
+
+Number of citations on first Scholar page:
+
+```{r}
+# number of citations on first gscholar page
+df_gscholar %>%
+  left_join(read_csv(here::here("scripts/gscholar_citations.csv")), by = "url") %>%
+  mutate(n_citations = pmin(n_citations, 500)) %>% 
+  ggplot(aes(n_citations)) +
+  geom_histogram(binwidth = 10, color = "black", alpha = 0.75) +
+  scale_x_continuous(labels = c("0", "100", "200", "300", "400", "500+")) +
+  hrbrthemes::theme_ipsum() +
+  labs(
+    x = "Number of citations on first page",
+    y = "Number of journals"
+  )
+```
+
+
