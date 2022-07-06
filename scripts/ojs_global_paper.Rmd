@@ -3,7 +3,7 @@ title: "Assessing OJS overlaps with scientometric databases"
 author: "Public Knowledge Project"
 date: "Updated: `r format(Sys.Date(), format='%B %d, %Y')`"
 output:
-  md_document:
+  github_document:
     toc: true
     toc_depth: 6
     number_sections: no
