@@ -1,7 +1,6 @@
 Assessing OJS overlaps with scientometric databases
 ================
-Public Knowledge Project
-Updated: July 05, 2022
+Updated: July 15, 2022
 
 -   <a href="#cleaning-raw-beacon-data"
     id="toc-cleaning-raw-beacon-data">Cleaning raw beacon data</a>
@@ -12,6 +11,7 @@ Updated: July 05, 2022
     -   <a href="#dimensions" id="toc-dimensions">Dimensions</a>
     -   <a href="#ebsco-host" id="toc-ebsco-host">EBSCO Host</a>
     -   <a href="#google-scholar" id="toc-google-scholar">Google Scholar</a>
+    -   <a href="#latindex" id="toc-latindex">Latindex</a>
 
 ------------------------------------------------------------------------
 
@@ -81,7 +81,9 @@ df <- df %>% bind_cols(continents)
 
 # Rename last column to `continent`
 names(df)[length(names(df))] <- "continent"
+```
 
+``` r
 # Filter to active OJS journals
 df <-
   df %>% 
@@ -99,6 +101,34 @@ df %>% count()
     ##       n
     ##   <int>
     ## 1 25671
+
+Total articles published:
+
+``` r
+df %>% summarise(total = sum(total_record_count, na.rm = T))
+```
+
+    ## # A tibble: 1 × 1
+    ##     total
+    ##     <dbl>
+    ## 1 5383793
+
+Total distinct ISSNs:
+
+``` r
+df %>% 
+  mutate(
+    issn = str_extract(issn, "[^\n]+") # correcting for multiple reported issns
+  ) %>% 
+  distinct(issn) %>% 
+  drop_na(issn) %>% 
+  count()
+```
+
+    ## # A tibble: 1 × 1
+    ##       n
+    ##   <int>
+    ## 1 22809
 
 ------------------------------------------------------------------------
 
@@ -155,7 +185,7 @@ df %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 ### Scopus
 
@@ -167,43 +197,57 @@ df_scopus <-
   read_excel(here::here("data/overlaps/scopus_nov2021.xlsx")) %>%
   clean_names() %>% 
   remove_empty() %>% 
-  select(issn = print_issn, e_issn, contains("cite_score"), everything()) %>%
-  mutate(issn = if_else(is.na(issn), e_issn, issn)) %>%
-  mutate_at(vars(contains("cite_score")), ~ as.numeric(.)) %>% 
-  mutate(
-    issn = str_replace(issn, "-", "")
+  transmute(
+    issn = str_replace(print_issn, "-", ""),
+    e_issn = str_replace(e_issn, "-", "")
   ) %>%
-  distinct(issn, .keep_all = T) %>% 
-  drop_na(issn)
+  distinct() %>% 
+  remove_empty()
 
-# total overlap
-df %>% 
-  drop_na(issn) %>%
+# join A (issn to issn)
+df_join_a <-
+  df %>%
+  drop_na(issn) %>% 
   transmute(
     country,
     issn = str_extract(issn, "[^\n]+"),
     issn = str_replace(issn, "-", "")
   ) %>%
-  inner_join(df_scopus, by = "issn") %>% 
+  distinct(issn, .keep_all = T) %>% 
+  inner_join(df_scopus %>% select(-e_issn), by = "issn")
+
+# join B (issn to e-issn)
+df_join_b <-
+  df %>%
+  drop_na(issn) %>% 
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+"),
+    issn = str_replace(issn, "-", "")
+  ) %>%
+  distinct(issn, .keep_all = T) %>% 
+  inner_join(df_scopus %>% select(-issn), by = c("issn" = "e_issn"))
+
+bind_rows(df_join_a, df_join_b) %>% 
+  distinct() %>% 
   count()
 ```
 
     ## # A tibble: 1 × 1
     ##       n
     ##   <int>
-    ## 1  1307
+    ## 1  1646
+
+``` r
+# 1646/41957
+# 1646/22809
+```
 
 Top 10 countries in overlap:
 
 ``` r
-df %>% 
-  drop_na(issn) %>%
-  transmute(
-    country,
-    issn = str_extract(issn, "[^\n]+"),
-    issn = str_replace(issn, "-", "")
-  ) %>%
-  inner_join(df_scopus, by = "issn") %>%
+bind_rows(df_join_a, df_join_b) %>% 
+  distinct() %>%
   drop_na(country) %>% 
   count(country) %>% 
   arrange(-n) %>% 
@@ -218,7 +262,7 @@ df %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 ### Dimensions
 
@@ -230,37 +274,58 @@ df_dimensions <-
   read_excel(here::here("data/overlaps/journals_dimensions.xlsx")) %>%
   clean_names() %>% 
   remove_empty() %>% 
-  select(issn = issn_print, e_issn = issn_e, everything()) %>%
-  mutate(issn = if_else(issn == "NULL", e_issn, issn)) %>%
-  mutate_at(vars(contains("cite_score")), ~ as.numeric(.)) %>% 
-  distinct(issn, .keep_all = T) %>% 
-  drop_na(issn)
+  transmute(
+    issn = str_replace(issn_print, "-", "") %>% na_if("NULL"),
+    e_issn = str_replace(issn_e, "-", "") %>% na_if("NULL")
+  ) %>%
+  distinct() %>% 
+  remove_empty()
 
-df %>% 
-  drop_na(issn) %>%
+
+# join A (issn to issn)
+df_join_a <-
+  df %>%
+  drop_na(issn) %>% 
   transmute(
     country,
-    issn = str_extract(issn, "[^\n]+")
+    issn = str_extract(issn, "[^\n]+"),
+    issn = str_replace(issn, "-", "")
   ) %>%
-  inner_join(df_dimensions, by = "issn") %>% 
+  distinct(issn, .keep_all = T) %>% 
+  inner_join(df_dimensions %>% select(-e_issn), by = "issn")
+
+# join B (issn to e-issn)
+df_join_b <-
+  df %>%
+  drop_na(issn) %>% 
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+"),
+    issn = str_replace(issn, "-", "")
+  ) %>%
+  distinct(issn, .keep_all = T) %>% 
+  inner_join(df_dimensions %>% select(-issn), by = c("issn" = "e_issn"))
+
+bind_rows(df_join_a, df_join_b) %>% 
+  distinct() %>% 
   count()
 ```
 
     ## # A tibble: 1 × 1
     ##       n
     ##   <int>
-    ## 1  9114
+    ## 1 12435
+
+``` r
+#12435/22809
+#12435/72990
+```
 
 Top 10 countries in overlap:
 
 ``` r
-df %>% 
-  drop_na(issn) %>%
-  transmute(
-    country,
-    issn = str_extract(issn, "[^\n]+")
-  ) %>%
-  inner_join(df_dimensions, by = "issn") %>%
+bind_rows(df_join_a, df_join_b) %>% 
+  distinct() %>%
   drop_na(country) %>% 
   count(country) %>% 
   arrange(-n) %>% 
@@ -275,7 +340,7 @@ df %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 ### EBSCO Host
 
@@ -329,51 +394,9 @@ df %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ### Google Scholar
-
-``` r
-# Extract URLs for gscholar script implemented in python
-
-df %>%
-  separate(oai_url, c("url1", "url2"), "\n") %>% 
-  remove_empty() %>% 
-  rename(oai_url = url1) %>% 
-  filter(!str_detect(oai_url, "\\?page=")) %>% 
-  transmute(
-    country, total_record_count, context_name,
-    url = str_replace(oai_url, "index/oai", set_spec),
-    url = str_replace(url, "^https://", ""),
-    url = str_replace(url, "^http://", ""),
-    url = str_replace(url, "^www108.", ""),
-    url = str_replace(url, "^www5.", ""),
-    url = str_replace(url, "^www3.", ""),
-    url = str_replace(url, "^www2.", ""),
-    url = str_replace(url, "^www.", ""),
-  ) %>%
-  bind_rows(
-    df %>%
-      separate(oai_url, c("url1", "url2"), "\n") %>% 
-      remove_empty() %>% 
-      rename(oai_url = url1) %>% 
-      filter(str_detect(oai_url, "\\?page=")) %>% 
-      transmute(
-        country, total_record_count, context_name,
-        url = str_replace(oai_url, "oai$", set_spec),
-        url = str_replace(url, "^https://", ""),
-        url = str_replace(url, "^http://", ""),
-        url = str_replace(url, "^www108.", ""),
-        url = str_replace(url, "^www5.", ""),
-        url = str_replace(url, "^www3.", ""),
-        url = str_replace(url, "^www2.", ""),
-        url = str_replace(url, "^www.", ""),
-      ), .
-  ) %>% 
-  write_csv(here::here("data/gscholar_urls.csv"))
-```
-
-Total overlap:
 
 ``` r
 # Read in python processed google scholar URLs
@@ -421,25 +444,64 @@ df_gscholar <-
   distinct() %>% 
   inner_join(df_gscholar, by = "url")
 
+
+# bind_cols(
+#     df_gscholar,
+#     df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
+#   ) %>%
+#   left_join(read_csv(here::here("scripts/gscholar_citations.csv")), by = "url") %>% 
+#   group_by(domain) %>% 
+#   summarise(
+#     n_results = sum(n_results, na.rm = T),
+#     n_citations = sum(n_citations, na.rm = T)
+#   ) %>% 
+#   filter(n_results > 0) %>% 
+#   select(-n_results) %>% 
+#   write_csv(here::here("data/scholar_present_domains_set1.csv"))
+```
+
+Total overlap:
+
+``` r
+# loading all domains
+domains_in_scholar <-
+  bind_rows(
+    read_csv(here::here("data/scholar_present_domains_set1.csv")),
+    read_csv(here::here("data/scholar_present_domains_set2.csv")),
+  ) %>% 
+  distinct()
+
 # total overlap
-df_gscholar %>% 
-  mutate(present = n_results > 0) %>%
-  filter(present) %>% 
+bind_cols(
+    df_gscholar,
+    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
+  ) %>% 
+  inner_join(domains_in_scholar, by = "domain") %>%
   count()
 ```
 
     ## # A tibble: 1 × 1
     ##       n
     ##   <int>
-    ## 1 19810
+    ## 1 22679
+
+``` r
+#22679/25671
+
+#domains_in_scholar %>% summary()
+#domains_in_scholar %>% filter(n_citations < 1)
+#552/8548
+```
 
 Top 10 countries in overlap:
 
 ``` r
 # top 10 countries in overlap
-df_gscholar %>% 
-  mutate(present = n_results > 0) %>%
-  filter(present) %>% 
+bind_cols(
+    df_gscholar,
+    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
+  ) %>% 
+  inner_join(domains_in_scholar, by = "domain") %>% 
   count(country) %>% 
   arrange(-n) %>% 
   mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
@@ -452,42 +514,132 @@ df_gscholar %>%
   labs(x = "Country", y = "Total journals")
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
-
-Number of articles:
-
-``` r
-# number of articles
-df_gscholar %>%
-  left_join(read_csv(here::here("scripts/gscholar_citations.csv")), by = "url") %>%
-  mutate(n_results = pmin(n_results, 500)) %>% 
-  ggplot(aes(n_results)) +
-  geom_histogram(binwidth = 10, color = "black", alpha = 0.75) +
-  scale_x_continuous(labels = c("0", "100", "200", "300", "400", "500+")) +
-  hrbrthemes::theme_ipsum() +
-  labs(
-    x = "Number of articles",
-    y = "Number of journals"
-  )
-```
-
-<img src="ojs_global_paper_files/figure-gfm/unnamed-chunk-15-1.png" width="672" />
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
 
 Number of citations on first Scholar page:
 
 ``` r
 # number of citations on first gscholar page
-df_gscholar %>%
-  left_join(read_csv(here::here("scripts/gscholar_citations.csv")), by = "url") %>%
+domains_in_scholar %>%
   mutate(n_citations = pmin(n_citations, 500)) %>% 
   ggplot(aes(n_citations)) +
-  geom_histogram(binwidth = 10, color = "black", alpha = 0.75) +
+  geom_histogram(binwidth = 20, fill = "#0072B2") +
   scale_x_continuous(labels = c("0", "100", "200", "300", "400", "500+")) +
   hrbrthemes::theme_ipsum() +
   labs(
-    x = "Number of citations on first page",
-    y = "Number of journals"
+    x = "Total citations on first page",
+    y = "Number of journal domains"
+  ) +
+  # coord_flip() +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    axis.ticks = element_blank()
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+``` r
+# ggsave("scholar_citations.png")
+
+# domains_in_scholar %>% arrange(-n_citations) %>% filter(n_citations >= 500)
+```
+
+### Latindex
+
+Total Overlap:
+
+``` r
+# Latindex
+df_latindex <-
+  read_excel(here::here("data/overlaps/latindex.xlsx")) %>%
+  clean_names() %>% 
+  remove_empty() %>% 
+  select(issn, e_issn, online = en_linea) %>% 
+  distinct()
+  
+
+# join A (issn to issn)
+df_join_a <-
+  df %>%
+  drop_na(issn) %>% 
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  distinct(issn, .keep_all = T) %>% 
+  inner_join(df_latindex %>% select(-e_issn), by = "issn")
+
+# join B (issn to e-issn)
+df_join_b <-
+  df %>%
+  drop_na(issn) %>% 
+  transmute(
+    country,
+    issn = str_extract(issn, "[^\n]+")
+  ) %>%
+  distinct(issn, .keep_all = T) %>% 
+  inner_join(df_latindex %>% select(-issn), by = c("issn" = "e_issn"))
+
+bind_rows(df_join_a, df_join_b) %>% 
+  distinct() %>%
+  arrange(country, issn, -online) %>% 
+  distinct(country, issn) %>% 
+  count()
+```
+
+    ## # A tibble: 1 × 1
+    ##       n
+    ##   <int>
+    ## 1  4208
+
+``` r
+# 4208/24486
+# 4208/6319
+```
+
+Top 10 countries in overlap:
+
+``` r
+bind_rows(df_join_a, df_join_b) %>% 
+  distinct() %>%
+  arrange(country, issn, -online) %>% 
+  distinct(country, issn) %>%
+  drop_na(country) %>% 
+  count(country) %>% 
+  arrange(-n) %>% 
+  head(10) %>% 
+  mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
+  ggplot(aes(country, n)) +
+  geom_col(fill = "#0072B2") +
+  coord_flip() +
+  labs(
+    x = "Country", y = "Number of journals"
+  ) +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 20),
+    axis.text = element_text(size = 18),
+    axis.ticks = element_blank()
+  )
+```
+
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+
+Latin American countries for JUOJS:
+
+``` r
+# Latin American countries for JUOJS
+df_latam <- read_csv(here::here("data/latindex_countries.csv")) 
+
+df %>% 
+  inner_join(df_latam, by = "country") %>% 
+  count()
+```
+
+    ## # A tibble: 1 × 1
+    ##       n
+    ##   <int>
+    ## 1  6319
