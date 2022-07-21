@@ -547,7 +547,7 @@ bind_cols(
 
 Number of citations on first Scholar page:
 
-```{r}
+```{r scholar-citations}
 # number of citations on first gscholar page
 bind_cols(
     df_gscholar,

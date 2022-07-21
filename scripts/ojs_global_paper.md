@@ -575,7 +575,7 @@ bind_cols(
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/scholar-citations-1.png)<!-- -->
 
 Journals with no citations on first page:
 
@@ -709,7 +709,7 @@ bind_rows(df_join_a, df_join_b) %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
 Latin American countries for JUOJS:
 
