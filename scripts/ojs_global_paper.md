@@ -1,6 +1,6 @@
 Assessing OJS overlaps with scientometric databases
 ================
-Updated: July 15, 2022
+Updated: July 20, 2022
 
 -   <a href="#cleaning-raw-beacon-data"
     id="toc-cleaning-raw-beacon-data">Cleaning raw beacon data</a>
@@ -91,7 +91,7 @@ df <-
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
 ```
 
-Total active OJS journals:
+Total active journals using OJS (JUOJS):
 
 ``` r
 df %>% count()
@@ -102,7 +102,7 @@ df %>% count()
     ##   <int>
     ## 1 25671
 
-Total articles published:
+Total articles published in active JUOJS:
 
 ``` r
 df %>% summarise(total = sum(total_record_count, na.rm = T))
@@ -177,8 +177,13 @@ df %>%
   head(10) %>% 
   mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
   ggplot(aes(country, n)) +
-  geom_col() +
-  hrbrthemes::theme_ipsum() +
+  geom_col(fill = "#0072B2") +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 20),
+    axis.text = element_text(size = 18),
+    axis.ticks = element_blank()
+  ) +
   coord_flip() +
   labs(
     x = "Country", y = "Number of journals"
@@ -254,8 +259,13 @@ bind_rows(df_join_a, df_join_b) %>%
   head(10) %>% 
   mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
   ggplot(aes(country, n)) +
-  geom_col() +
-  hrbrthemes::theme_ipsum() +
+  geom_col(fill = "#0072B2") +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 20),
+    axis.text = element_text(size = 18),
+    axis.ticks = element_blank()
+  ) +
   coord_flip() +
   labs(
     x = "Country", y = "Number of journals"
@@ -332,8 +342,13 @@ bind_rows(df_join_a, df_join_b) %>%
   head(10) %>% 
   mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
   ggplot(aes(country, n)) +
-  geom_col() +
-  hrbrthemes::theme_ipsum() +
+  geom_col(fill = "#0072B2") +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 20),
+    axis.text = element_text(size = 18),
+    axis.ticks = element_blank()
+  ) +
   coord_flip() +
   labs(
     x = "Country", y = "Number of journals"
@@ -386,9 +401,14 @@ df %>%
   head(10) %>% 
   mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
   ggplot(aes(country, n)) +
-  geom_col() +
-  hrbrthemes::theme_ipsum() +
+  geom_col(fill = "#0072B2") +
   coord_flip() +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 20),
+    axis.text = element_text(size = 10),
+    axis.ticks = element_blank()
+  ) +
   labs(
     x = "Country", y = "Number of journals"
   )
@@ -400,6 +420,7 @@ df %>%
 
 ``` r
 # Read in python processed google scholar URLs
+## first iteration using journal URLs ##
 
 df_gscholar <- 
   read_csv(here::here("scripts/gscholar_urls_mapped.csv")) %>% 
@@ -507,9 +528,14 @@ bind_cols(
   mutate(country = fct_inorder(country) %>% fct_rev()) %>% 
   head(10) %>% 
   ggplot(aes(country, n)) +
-  geom_col() +
+  geom_col(fill = "#0072B2") +
   scale_y_continuous(breaks = scales::breaks_width(1000)) +
-  theme_minimal() +
+  theme_classic() +
+  theme(
+    axis.title = element_text(size = 20),
+    axis.text = element_text(size = 10),
+    axis.ticks = element_blank()
+  ) +
   coord_flip() +
   labs(x = "Country", y = "Total journals")
 ```
@@ -520,17 +546,27 @@ Number of citations on first Scholar page:
 
 ``` r
 # number of citations on first gscholar page
-domains_in_scholar %>%
-  mutate(n_citations = pmin(n_citations, 500)) %>% 
-  ggplot(aes(n_citations)) +
+bind_cols(
+    df_gscholar,
+    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
+  ) %>% 
+  inner_join(domains_in_scholar, by = "domain") %>% 
+  select(domain, url, n_citations) %>% 
+  group_by(domain) %>% 
+  mutate(journals_within_this_domain = n()) %>% 
+  ungroup() %>% 
+  mutate(
+    n_citations_by_journal = round(n_citations/journals_within_this_domain),
+    n_citations_by_journal = pmin(n_citations_by_journal, 500)
+  ) %>%
+  select(url, n_citations_by_journal) %>%
+  ggplot(aes(n_citations_by_journal)) +
   geom_histogram(binwidth = 20, fill = "#0072B2") +
   scale_x_continuous(labels = c("0", "100", "200", "300", "400", "500+")) +
-  hrbrthemes::theme_ipsum() +
   labs(
-    x = "Total citations on first page",
-    y = "Number of journal domains"
+    x = "Total citations on first Google Scholar page",
+    y = "Number of journals"
   ) +
-  # coord_flip() +
   theme_classic() +
   theme(
     axis.title = element_text(size = 14),
@@ -541,11 +577,58 @@ domains_in_scholar %>%
 
 ![](ojs_global_paper_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
-``` r
-# ggsave("scholar_citations.png")
+Journals with no citations on first page:
 
-# domains_in_scholar %>% arrange(-n_citations) %>% filter(n_citations >= 500)
+``` r
+# alter threshold to see proportions as needed
+threshold <- 0
+
+bind_cols(
+    df_gscholar,
+    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
+  ) %>% 
+  inner_join(domains_in_scholar, by = "domain") %>% 
+  select(domain, url, n_citations) %>% 
+  group_by(domain) %>% 
+  mutate(journals_within_this_domain = n()) %>% 
+  ungroup() %>% 
+  mutate(
+    n_citations_by_journal = round(n_citations/journals_within_this_domain),
+  ) %>%
+  count(n_citations_by_journal > threshold)
 ```
+
+    ## # A tibble: 2 × 2
+    ##   `n_citations_by_journal > threshold`     n
+    ##   <lgl>                                <int>
+    ## 1 FALSE                                  835
+    ## 2 TRUE                                 21844
+
+Summary of citations on first page:
+
+``` r
+bind_cols(
+    df_gscholar,
+    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
+  ) %>% 
+  inner_join(domains_in_scholar, by = "domain") %>% 
+  select(domain, url, n_citations) %>% 
+  group_by(domain) %>% 
+  mutate(journals_within_this_domain = n()) %>% 
+  ungroup() %>% 
+  transmute(
+    n_citations_by_journal = round(n_citations/journals_within_this_domain),
+  ) %>%
+  summary()
+```
+
+    ##  n_citations_by_journal
+    ##  Min.   :    0.0       
+    ##  1st Qu.:   18.0       
+    ##  Median :   59.0       
+    ##  Mean   :  135.2       
+    ##  3rd Qu.:  139.0       
+    ##  Max.   :59728.0
 
 ### Latindex
 
@@ -626,7 +709,7 @@ bind_rows(df_join_a, df_join_b) %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
 Latin American countries for JUOJS:
 
