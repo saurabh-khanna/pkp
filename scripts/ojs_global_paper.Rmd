@@ -598,6 +598,7 @@ bind_cols(
   ) %>%
   count(n_citations_by_journal > threshold)
 ```
+
 Summary of citations on first page:
 
 ```{r}
@@ -616,6 +617,27 @@ bind_cols(
   summary()
 ```
 
+
+Top 10 cited journals:
+
+```{r}
+bind_cols(
+    df_gscholar,
+    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
+  ) %>% 
+  inner_join(domains_in_scholar, by = "domain") %>% 
+  select(domain, url, country, context_name, n_citations) %>% 
+  group_by(domain) %>% 
+  mutate(journals_within_this_domain = n()) %>% 
+  ungroup() %>% 
+  transmute(
+    context_name,
+    country,
+    n_citations_by_journal = round(n_citations/journals_within_this_domain),
+  ) %>% 
+  arrange(desc(n_citations_by_journal)) %>% 
+  head(10)
+```
 
 
 ### Latindex

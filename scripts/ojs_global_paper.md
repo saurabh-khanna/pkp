@@ -1,6 +1,6 @@
 Assessing OJS overlaps with scientometric databases
 ================
-Updated: July 20, 2022
+Updated: July 22, 2022
 
 -   <a href="#cleaning-raw-beacon-data"
     id="toc-cleaning-raw-beacon-data">Cleaning raw beacon data</a>
@@ -630,6 +630,41 @@ bind_cols(
     ##  3rd Qu.:  139.0       
     ##  Max.   :59728.0
 
+Top 10 cited journals:
+
+``` r
+bind_cols(
+    df_gscholar,
+    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
+  ) %>% 
+  inner_join(domains_in_scholar, by = "domain") %>% 
+  select(domain, url, country, context_name, n_citations) %>% 
+  group_by(domain) %>% 
+  mutate(journals_within_this_domain = n()) %>% 
+  ungroup() %>% 
+  transmute(
+    context_name,
+    country,
+    n_citations_by_journal = round(n_citations/journals_within_this_domain),
+  ) %>% 
+  arrange(desc(n_citations_by_journal)) %>% 
+  head(10)
+```
+
+    ## # A tibble: 10 × 3
+    ##    context_name                                         country n_citations_by_…
+    ##    <chr>                                                <chr>              <dbl>
+    ##  1 Journal of Statistical Software                      United…            59728
+    ##  2 Proceedings of the AAAI Conference on Artificial In… United…            42328
+    ##  3 Proceedings of the AAAI Conference on Human Computa… United…            42328
+    ##  4 Forum Qualitative Sozialforschung / Forum: Qualitat… Germany            20885
+    ##  5 education policy analysis archives                   United…            19068
+    ##  6 Sophia Journal                                       Portug…            13078
+    ##  7 The Canadian Field-Naturalist                        Canada             12467
+    ##  8 Em Questão                                           Brazil             10748
+    ##  9 Neues Jahrbuch Für Mineralogie                       Germany             9898
+    ## 10 REVISTA FAIPE                                        Brazil              9769
+
 ### Latindex
 
 Total Overlap:
@@ -709,7 +744,7 @@ bind_rows(df_join_a, df_join_b) %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
 Latin American countries for JUOJS:
 
