@@ -547,28 +547,17 @@ bind_cols(
 
 Number of citations on first Scholar page:
 
-```{r scholar-citations}
+```{r scholar-citations, fig.retina=4}
 # number of citations on first gscholar page
-bind_cols(
-    df_gscholar,
-    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
-  ) %>% 
-  inner_join(domains_in_scholar, by = "domain") %>% 
-  select(domain, url, n_citations) %>% 
-  group_by(domain) %>% 
-  mutate(journals_within_this_domain = n()) %>% 
-  ungroup() %>% 
-  mutate(
-    n_citations_by_journal = round(n_citations/journals_within_this_domain),
-    n_citations_by_journal = pmin(n_citations_by_journal, 500)
-  ) %>%
-  select(url, n_citations_by_journal) %>%
-  ggplot(aes(n_citations_by_journal)) +
+domains_in_scholar %>%
+  mutate(n_citations = pmin(n_citations, 500)) %>% 
+  ggplot(aes(n_citations)) +
   geom_histogram(binwidth = 20, fill = "#0072B2") +
   scale_x_continuous(labels = c("0", "100", "200", "300", "400", "500+")) +
+  hrbrthemes::theme_ipsum() +
   labs(
-    x = "Total citations on first Google Scholar page",
-    y = "Number of journals"
+    x = "Total citations on first page",
+    y = "Number of journal domains"
   ) +
   theme_classic() +
   theme(
@@ -576,68 +565,25 @@ bind_cols(
     axis.text = element_text(size = 12),
     axis.ticks = element_blank()
   )
+
+# ggsave("scholar_citations.png")
 ```
 
-Journals with no citations on first page:
+Journals with non-zero citations on first page:
 
 ```{r}
-# alter threshold to see proportions as needed
+# alter threshold to see proportions as needed (e.g. 0, 1000, 10000)
 threshold <- 0
 
-bind_cols(
-    df_gscholar,
-    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
-  ) %>% 
-  inner_join(domains_in_scholar, by = "domain") %>% 
-  select(domain, url, n_citations) %>% 
-  group_by(domain) %>% 
-  mutate(journals_within_this_domain = n()) %>% 
-  ungroup() %>% 
-  mutate(
-    n_citations_by_journal = round(n_citations/journals_within_this_domain),
-  ) %>%
-  count(n_citations_by_journal > threshold)
+domains_in_scholar %>% arrange(-n_citations) %>% filter(n_citations > threshold) %>% count()
 ```
 
 Summary of citations on first page:
 
 ```{r}
-bind_cols(
-    df_gscholar,
-    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
-  ) %>% 
-  inner_join(domains_in_scholar, by = "domain") %>% 
-  select(domain, url, n_citations) %>% 
-  group_by(domain) %>% 
-  mutate(journals_within_this_domain = n()) %>% 
-  ungroup() %>% 
-  transmute(
-    n_citations_by_journal = round(n_citations/journals_within_this_domain),
-  ) %>%
-  summary()
+domains_in_scholar %>% summary()
 ```
 
-
-Top 10 cited journals:
-
-```{r}
-bind_cols(
-    df_gscholar,
-    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
-  ) %>% 
-  inner_join(domains_in_scholar, by = "domain") %>% 
-  select(domain, url, country, context_name, n_citations) %>% 
-  group_by(domain) %>% 
-  mutate(journals_within_this_domain = n()) %>% 
-  ungroup() %>% 
-  transmute(
-    context_name,
-    country,
-    n_citations_by_journal = round(n_citations/journals_within_this_domain),
-  ) %>% 
-  arrange(desc(n_citations_by_journal)) %>% 
-  head(10)
-```
 
 
 ### Latindex

@@ -1,6 +1,6 @@
 Assessing OJS overlaps with scientometric databases
 ================
-Updated: July 22, 2022
+Updated: July 25, 2022
 
 -   <a href="#cleaning-raw-beacon-data"
     id="toc-cleaning-raw-beacon-data">Cleaning raw beacon data</a>
@@ -546,26 +546,15 @@ Number of citations on first Scholar page:
 
 ``` r
 # number of citations on first gscholar page
-bind_cols(
-    df_gscholar,
-    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
-  ) %>% 
-  inner_join(domains_in_scholar, by = "domain") %>% 
-  select(domain, url, n_citations) %>% 
-  group_by(domain) %>% 
-  mutate(journals_within_this_domain = n()) %>% 
-  ungroup() %>% 
-  mutate(
-    n_citations_by_journal = round(n_citations/journals_within_this_domain),
-    n_citations_by_journal = pmin(n_citations_by_journal, 500)
-  ) %>%
-  select(url, n_citations_by_journal) %>%
-  ggplot(aes(n_citations_by_journal)) +
+domains_in_scholar %>%
+  mutate(n_citations = pmin(n_citations, 500)) %>% 
+  ggplot(aes(n_citations)) +
   geom_histogram(binwidth = 20, fill = "#0072B2") +
   scale_x_continuous(labels = c("0", "100", "200", "300", "400", "500+")) +
+  hrbrthemes::theme_ipsum() +
   labs(
-    x = "Total citations on first Google Scholar page",
-    y = "Number of journals"
+    x = "Total citations on first page",
+    y = "Number of journal domains"
   ) +
   theme_classic() +
   theme(
@@ -575,95 +564,39 @@ bind_cols(
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/scholar-citations-1.png)<!-- -->
-
-Journals with no citations on first page:
+<img src="ojs_global_paper_files/figure-gfm/scholar-citations-1.png" width="672" />
 
 ``` r
-# alter threshold to see proportions as needed
-threshold <- 0
-
-bind_cols(
-    df_gscholar,
-    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
-  ) %>% 
-  inner_join(domains_in_scholar, by = "domain") %>% 
-  select(domain, url, n_citations) %>% 
-  group_by(domain) %>% 
-  mutate(journals_within_this_domain = n()) %>% 
-  ungroup() %>% 
-  mutate(
-    n_citations_by_journal = round(n_citations/journals_within_this_domain),
-  ) %>%
-  count(n_citations_by_journal > threshold)
+# ggsave("scholar_citations.png")
 ```
 
-    ## # A tibble: 2 × 2
-    ##   `n_citations_by_journal > threshold`     n
-    ##   <lgl>                                <int>
-    ## 1 FALSE                                  835
-    ## 2 TRUE                                 21844
+Journals with non-zero citations on first page:
+
+``` r
+# alter threshold to see proportions as needed (e.g. 0, 1000, 10000)
+threshold <- 0
+
+domains_in_scholar %>% arrange(-n_citations) %>% filter(n_citations > threshold) %>% count()
+```
+
+    ## # A tibble: 1 × 1
+    ##       n
+    ##   <int>
+    ## 1  7996
 
 Summary of citations on first page:
 
 ``` r
-bind_cols(
-    df_gscholar,
-    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
-  ) %>% 
-  inner_join(domains_in_scholar, by = "domain") %>% 
-  select(domain, url, n_citations) %>% 
-  group_by(domain) %>% 
-  mutate(journals_within_this_domain = n()) %>% 
-  ungroup() %>% 
-  transmute(
-    n_citations_by_journal = round(n_citations/journals_within_this_domain),
-  ) %>%
-  summary()
+domains_in_scholar %>% summary()
 ```
 
-    ##  n_citations_by_journal
-    ##  Min.   :    0.0       
-    ##  1st Qu.:   18.0       
-    ##  Median :   59.0       
-    ##  Mean   :  135.2       
-    ##  3rd Qu.:  139.0       
-    ##  Max.   :59728.0
-
-Top 10 cited journals:
-
-``` r
-bind_cols(
-    df_gscholar,
-    df_gscholar %>% pull(url) %>% domain() %>% tld_extract()
-  ) %>% 
-  inner_join(domains_in_scholar, by = "domain") %>% 
-  select(domain, url, country, context_name, n_citations) %>% 
-  group_by(domain) %>% 
-  mutate(journals_within_this_domain = n()) %>% 
-  ungroup() %>% 
-  transmute(
-    context_name,
-    country,
-    n_citations_by_journal = round(n_citations/journals_within_this_domain),
-  ) %>% 
-  arrange(desc(n_citations_by_journal)) %>% 
-  head(10)
-```
-
-    ## # A tibble: 10 × 3
-    ##    context_name                                         country n_citations_by_…
-    ##    <chr>                                                <chr>              <dbl>
-    ##  1 Journal of Statistical Software                      United…            59728
-    ##  2 Proceedings of the AAAI Conference on Artificial In… United…            42328
-    ##  3 Proceedings of the AAAI Conference on Human Computa… United…            42328
-    ##  4 Forum Qualitative Sozialforschung / Forum: Qualitat… Germany            20885
-    ##  5 education policy analysis archives                   United…            19068
-    ##  6 Sophia Journal                                       Portug…            13078
-    ##  7 The Canadian Field-Naturalist                        Canada             12467
-    ##  8 Em Questão                                           Brazil             10748
-    ##  9 Neues Jahrbuch Für Mineralogie                       Germany             9898
-    ## 10 REVISTA FAIPE                                        Brazil              9769
+    ##     domain           n_citations     
+    ##  Length:8548        Min.   :    0.0  
+    ##  Class :character   1st Qu.:   11.0  
+    ##  Mode  :character   Median :   50.0  
+    ##                     Mean   :  358.8  
+    ##                     3rd Qu.:  185.0  
+    ##                     Max.   :84656.0
 
 ### Latindex
 
@@ -744,7 +677,7 @@ bind_rows(df_join_a, df_join_b) %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
 
 Latin American countries for JUOJS:
 
