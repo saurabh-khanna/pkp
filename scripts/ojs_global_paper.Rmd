@@ -104,8 +104,15 @@ df %>% count()
 Total articles published in active JUOJS:
 
 ```{r}
-df %>% summarise(total = sum(total_record_count, na.rm = T))
+df %>% summarise(total = sum(record_count_2020, na.rm = T))
 ```
+
+Average articles published in active JUOJS:
+
+```{r}
+df %>% summarise(total = mean(record_count_2020, na.rm = T))
+```
+
 
 Total distinct ISSNs:
 
@@ -182,9 +189,9 @@ Total overlap:
 ```{r}
 # Scopus data
 df_scopus <-
-  read_excel(here::here("data/overlaps/scopus_nov2021.xlsx")) %>%
+  read_excel(here::here("data/overlaps/scopus_jan2021.xlsx")) %>%
   clean_names() %>% 
-  remove_empty() %>% 
+  remove_empty() %>%
   transmute(
     issn = str_replace(print_issn, "-", ""),
     e_issn = str_replace(e_issn, "-", "")
