@@ -3,7 +3,6 @@
 .RData
 .Ruserdata
 *.csv
-*.xlsx
 *.docx
 *.pdf
 *.rar
@@ -12,7 +11,7 @@
 *.sql.gz
 *.jsonl.gz
 pkpbeacon.txt
-data/
-!data/overlaps/scopus_jan2021.xlsx
+data/*
+!data/overlaps
 jupyter/
 .ipynb_checkpoints/

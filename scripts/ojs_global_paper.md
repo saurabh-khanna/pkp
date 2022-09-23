@@ -1,6 +1,6 @@
 Assessing OJS overlaps with scientometric databases
 ================
-Updated: July 25, 2022
+Updated: September 23, 2022
 
 -   <a href="#cleaning-raw-beacon-data"
     id="toc-cleaning-raw-beacon-data">Cleaning raw beacon data</a>
@@ -105,13 +105,24 @@ df %>% count()
 Total articles published in active JUOJS:
 
 ``` r
-df %>% summarise(total = sum(total_record_count, na.rm = T))
+df %>% summarise(total = sum(record_count_2020, na.rm = T))
 ```
 
     ## # A tibble: 1 × 1
-    ##     total
-    ##     <dbl>
-    ## 1 5383793
+    ##    total
+    ##    <dbl>
+    ## 1 996405
+
+Average articles published in active JUOJS:
+
+``` r
+df %>% summarise(total = mean(record_count_2020, na.rm = T))
+```
+
+    ## # A tibble: 1 × 1
+    ##   total
+    ##   <dbl>
+    ## 1  38.8
 
 Total distinct ISSNs:
 
@@ -142,7 +153,7 @@ Total overlap:
 
 ``` r
 df_wos <-
-  read_table(here::here("data/overlaps/wos_data_simon.txt"), na = c("NULL", "NA", "")) %>% 
+  read_table(here::here("data/overlaps/wos.txt"), na = c("NULL", "NA", "")) %>% 
   clean_names() %>% 
   remove_empty() %>% 
   filter(str_detect(issn, "^[0-9]{4}-[0-9]{3}[0-9xX]$")) %>% 
@@ -190,7 +201,7 @@ df %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 ### Scopus
 
@@ -199,9 +210,9 @@ Total overlap:
 ``` r
 # Scopus data
 df_scopus <-
-  read_excel(here::here("data/overlaps/scopus_nov2021.xlsx")) %>%
+  read_excel(here::here("data/overlaps/scopus.xlsx")) %>%
   clean_names() %>% 
-  remove_empty() %>% 
+  remove_empty() %>%
   transmute(
     issn = str_replace(print_issn, "-", ""),
     e_issn = str_replace(e_issn, "-", "")
@@ -272,7 +283,7 @@ bind_rows(df_join_a, df_join_b) %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ### Dimensions
 
@@ -281,7 +292,7 @@ Total overlap:
 ``` r
 # Dimensions data
 df_dimensions <-
-  read_excel(here::here("data/overlaps/journals_dimensions.xlsx")) %>%
+  read_excel(here::here("data/overlaps/dimensions.xlsx")) %>%
   clean_names() %>% 
   remove_empty() %>% 
   transmute(
@@ -355,7 +366,7 @@ bind_rows(df_join_a, df_join_b) %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 ### EBSCO Host
 
@@ -414,7 +425,7 @@ df %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ### Google Scholar
 
@@ -540,7 +551,7 @@ bind_cols(
   labs(x = "Country", y = "Total journals")
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
 Number of citations on first Scholar page:
 
@@ -677,7 +688,7 @@ bind_rows(df_join_a, df_join_b) %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
 Latin American countries for JUOJS:
 

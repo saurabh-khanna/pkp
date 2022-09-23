@@ -138,7 +138,7 @@ Total overlap:
 
 ```{r, fig.retina=4}
 df_wos <-
-  read_table(here::here("data/overlaps/wos_data_simon.txt"), na = c("NULL", "NA", "")) %>% 
+  read_table(here::here("data/overlaps/wos.txt"), na = c("NULL", "NA", "")) %>% 
   clean_names() %>% 
   remove_empty() %>% 
   filter(str_detect(issn, "^[0-9]{4}-[0-9]{3}[0-9xX]$")) %>% 
@@ -189,7 +189,7 @@ Total overlap:
 ```{r}
 # Scopus data
 df_scopus <-
-  read_excel(here::here("data/overlaps/scopus_jan2021.xlsx")) %>%
+  read_excel(here::here("data/overlaps/scopus.xlsx")) %>%
   clean_names() %>% 
   remove_empty() %>%
   transmute(
@@ -266,7 +266,7 @@ Total overlap:
 ```{r}
 # Dimensions data
 df_dimensions <-
-  read_excel(here::here("data/overlaps/journals_dimensions.xlsx")) %>%
+  read_excel(here::here("data/overlaps/dimensions.xlsx")) %>%
   clean_names() %>% 
   remove_empty() %>% 
   transmute(
