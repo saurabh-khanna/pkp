@@ -48,7 +48,7 @@ shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
 
 ```{r}
 # Data (May 17, 2021)
-df <- read_csv(here::here("data/jonas/report-latest.csv"))
+df <- read_csv(here::here("data/beacon-public.csv"))
 
 canada.states <- 
   c("Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon")
@@ -244,7 +244,7 @@ df %>% filter(unresponsive == 1) %>% count(oai_url)
 # global df
 df_world <-
   df %>%
-  filter(active) %>% 
+  filter(active2020, application == "ojs") %>% 
   drop_na(country) %>%
   group_by(country, continent) %>%
   summarize(
@@ -327,6 +327,58 @@ plot <-
 ggplotly(plot, tooltip = "hover_text") %>% 
   layout(xaxis = list(autorange = TRUE), yaxis = list(autorange = TRUE))
 ```
+
+```{r, eval=FALSE, fig.retina=4, out.width="100%"}
+labels <- function(x) {
+  if_else(x < 500, as.character(x), "500+")
+}
+
+shapefile %>% 
+  clean_names() %>%
+  rename(country = name) %>%
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+    country = if_else(str_detect(country, "Korea, Republic of"), "South Korea", country),
+    country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
+    country = if_else(str_detect(country, "Surinam"), "Surinam", country)
+  ) %>%
+  left_join(df_world, by = "country") %>% 
+  filter(country != "Antarctica") %>% 
+  mutate(
+    total = replace_na(total, 0),
+    total = pmin(total, 500)
+  ) %>%
+  ggplot() +
+  geom_sf(aes(fill = total), size = 0.3, show.legend = T) +
+  scale_fill_gradientn(
+    breaks = seq(0, 500, 100),
+    labels = labels,
+    colors = RColorBrewer::brewer.pal(n = 9, name = "Blues")
+  ) +
+  guides(
+    fill =
+      guide_colorbar(
+        barheight = 0.5,
+        barwidth = 15,
+        title = NULL
+      )
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5, vjust = 5)
+  ) +
+  labs(fill = "", title = "Global JUOJS Presence in 2020")
+
+ggsave(here::here("ojs_map_2020.png"))
+```
+
+
 
 ```{r}
 df_world %>% 

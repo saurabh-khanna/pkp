@@ -679,4 +679,15 @@ df %>%
 
 
 
+```{r, eval=F}
+df %>%
+  distinct(domain, country) %>% 
+  inner_join(domains_in_scholar, by = "domain") %>% 
+  filter(country %in% c("Brazil", "Mexico", "Colombia", "Argentina", "Peru", "Venezuela", "Chile", "Guatemala", "Ecuador", "Bolivia", "Haiti", "Cuba", "Dominican Republic", "Honduras", "Paraguay", "Uruguay", "Costa Rica", "El Salvador", "Nicaragua")) %>% 
+  arrange(desc(n_citations)) %>%
+  head(50) %>%
+  write_csv(here::here("latam_top50_citations.csv"))
+```
+
+
 

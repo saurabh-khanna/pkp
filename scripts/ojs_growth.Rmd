@@ -26,7 +26,7 @@ tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
 
 ```{r}
 # Data (Aug 5, 2021)
-df <- read_csv(here::here("data/jonas/report-latest.csv"))
+df <- read_csv(here::here("data/beacon-public.csv"))
 
 canada.states <- 
   c("Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon")
@@ -109,22 +109,31 @@ df_2021 %>%
 ## Active journals (5 or more records published per year)
 
 ```{r, fig.retina=4}
-df %>%
-  # drop_na(country) %>%
-  select(context_name, record_count_2010:record_count_2021) %>% 
+df %>% 
+  select(context_name, record_count_2010:record_count_2020) %>% 
   pivot_longer(cols = starts_with("record_count")) %>% 
   mutate(
     name = parse_number(name)
   ) %>% 
   filter(value >= 5) %>% 
   count(name) %>%
+  mutate(name = as.integer(name)) %>% 
   ggplot(aes(name, n)) +
-  geom_point() +
   geom_line() +
-  hrbrthemes::theme_ipsum() +
+  geom_point() +
+  theme_classic() +
+  scale_x_continuous(breaks = seq(2010, 2020, 1)) +
+  scale_y_continuous(breaks = seq(0, 25000, 5000)) +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    axis.ticks = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
   labs(
     x = "Year",
-    y = "Active journals"
+    y = "Active journals using OJS",
+    title = "Growth of journals actively using OJS"
   )
 ```
 
