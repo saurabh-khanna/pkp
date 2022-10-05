@@ -21,27 +21,31 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.retina
 ```{r message=FALSE, warning=FALSE}
 # Libraries
 pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly, readxl)
+
 tld <- read_csv(here::here("data/tld-country.csv"))
 tld_from_ip <- read_csv(here::here("data/tld_from_ip.csv"))
-shapefile <- read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp"))
 
-# merging morocco and western sahara
-# shapefile <-
-#   shapefile %>% 
-#   clean_names() %>% 
-#   mutate(
-#     name = if_else(name == "Western Sahara", "Morocco", name)
-#   ) %>%
-#   arrange(name) %>% 
-#   group_by(name) %>% 
-#   summarize(
-#     geometry = st_union(geometry),
-#     lat = first(lat),
-#     lon = first(lon),
-#     region = first(region),
-#     subregion = first(subregion)
-#   ) %>% 
-#   st_cast("MULTIPOLYGON")
+# shapefile with merging morocco and western sahara
+shapefile <-
+  read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp")) %>%
+  clean_names() %>%
+  filter(name %in% c("Western Sahara", "Morocco")) %>% 
+  mutate(name = if_else(name == "Western Sahara", "Morocco", name)) %>%
+  arrange(name) %>%
+  group_by(name) %>%
+  summarize(
+    geometry = st_union(geometry),
+    lat = first(lat),
+    lon = first(lon),
+    region = first(region),
+    subregion = first(subregion)
+  ) %>%
+  st_cast("MULTIPOLYGON") %>% 
+  bind_rows(
+    read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp")) %>%
+      clean_names() %>%
+      filter(!(name %in% c("Western Sahara", "Morocco")))
+  )
 ```
 
 
@@ -303,7 +307,8 @@ plot <-
     country = if_else(str_detect(country, "Korea, Republic of"), "South Korea", country),
     country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
     country = if_else(str_detect(country, "Surinam"), "Surinam", country)
-  ) %>%
+  ) %>% 
+  filter(area > 500) %>% 
   left_join(df_world, by = "country") %>% 
   filter(country != "Antarctica") %>% 
   mutate(
@@ -347,14 +352,15 @@ shapefile %>%
     country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
     country = if_else(str_detect(country, "Surinam"), "Surinam", country)
   ) %>%
-  left_join(df_world, by = "country") %>% 
+  left_join(df_world, by = "country") %>% #arrange(area) %>% select(country, total, area)
+  filter(total > 0 | area > 1000) %>% 
   filter(country != "Antarctica") %>% 
   mutate(
     total = replace_na(total, 0),
     total = pmin(total, 500)
   ) %>%
   ggplot() +
-  geom_sf(aes(fill = total), size = 0.3, show.legend = T) +
+  geom_sf(aes(fill = total), size = 0.1, color = "gray", show.legend = T) +
   scale_fill_gradientn(
     breaks = seq(0, 500, 100),
     labels = labels,
@@ -365,15 +371,12 @@ shapefile %>%
       guide_colorbar(
         barheight = 0.5,
         barwidth = 15,
-        title = NULL
+        title = "Journals",
+        title.vjust = 1,
       )
   ) +
   theme_void() +
-  theme(
-    legend.position = "bottom",
-    plot.title = element_text(hjust = 0.5, vjust = 5)
-  ) +
-  labs(fill = "", title = "Global JUOJS Presence in 2020")
+  theme(legend.position = "bottom")
 
 ggsave(here::here("ojs_map_2020.png"))
 ```

@@ -1,9 +1,13 @@
 Assessing OJS overlaps with scientometric databases
 ================
-Updated: September 23, 2022
+Updated: October 05, 2022
 
 -   <a href="#cleaning-raw-beacon-data"
     id="toc-cleaning-raw-beacon-data">Cleaning raw beacon data</a>
+-   <a href="#juojs-global-presence-in-2020"
+    id="toc-juojs-global-presence-in-2020">JUOJS Global Presence in 2020</a>
+-   <a href="#juojs-growth-2010-20" id="toc-juojs-growth-2010-20">JUOJS
+    Growth (2010-20)</a>
 -   <a href="#assessing-overlaps" id="toc-assessing-overlaps">Assessing
     overlaps</a>
     -   <a href="#web-of-science" id="toc-web-of-science">Web of Science</a>
@@ -12,6 +16,8 @@ Updated: September 23, 2022
     -   <a href="#ebsco-host" id="toc-ebsco-host">EBSCO Host</a>
     -   <a href="#google-scholar" id="toc-google-scholar">Google Scholar</a>
     -   <a href="#latindex" id="toc-latindex">Latindex</a>
+-   <a href="#top-100-cited-journal-domains"
+    id="toc-top-100-cited-journal-domains">Top 100 cited journal domains</a>
 
 ------------------------------------------------------------------------
 
@@ -22,12 +28,34 @@ pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltoo
 # raw beacon data
 df <- read_csv(here::here("data/beacon-public.csv")) 
 
-# ancillary data and vectors for cleaning
+# ancillary data and vectors for cleaning and plotting
 iso_to_name <- read_csv(here::here("data/country-iso3166-to-name.csv"))
 
 canada.states <- 
   c(
     "Alberta", "British Columbia", "Labrador", "Manitoba", "New Brunswick", "Newfoundland", "Nova Scotia", "Nunavut", "North West Terr.", "Ontario", "Prince Edward Is.", "Québec (Province)", "Saskatchewan", "Yukon"
+  )
+
+# world map shapefile
+shapefile <-
+  read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp")) %>%
+  clean_names() %>%
+  filter(name %in% c("Western Sahara", "Morocco")) %>% 
+  mutate(name = if_else(name == "Western Sahara", "Morocco", name)) %>%
+  arrange(name) %>%
+  group_by(name) %>%
+  summarize(
+    geometry = st_union(geometry),
+    lat = first(lat),
+    lon = first(lon),
+    region = first(region),
+    subregion = first(subregion)
+  ) %>%
+  st_cast("MULTIPOLYGON") %>% 
+  bind_rows(
+    read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp")) %>%
+      clean_names() %>%
+      filter(!(name %in% c("Western Sahara", "Morocco")))
   )
 ```
 
@@ -145,6 +173,102 @@ df %>%
 
 <br/><br/>
 
+## JUOJS Global Presence in 2020
+
+``` r
+# global df
+df_world <-
+  df %>%
+  drop_na(country) %>%
+  count(country, name = "total")
+
+labels <- function(x) {
+  if_else(x < 500, as.character(x), "500+")
+}
+
+shapefile %>% 
+  clean_names() %>%
+  rename(country = name) %>%
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+    country = if_else(str_detect(country, "Korea, Republic of"), "South Korea", country),
+    country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
+    country = if_else(str_detect(country, "Surinam"), "Surinam", country)
+  ) %>%
+  left_join(df_world, by = "country") %>% #arrange(area) %>% select(country, total, area)
+  filter(total > 0 | area > 1000) %>% 
+  filter(country != "Antarctica") %>% 
+  mutate(
+    total = replace_na(total, 0),
+    total = pmin(total, 500)
+  ) %>%
+  ggplot() +
+  geom_sf(aes(fill = total), size = 0.1, color = "gray", show.legend = T) +
+  scale_fill_gradientn(
+    breaks = seq(0, 500, 100),
+    labels = labels,
+    colors = RColorBrewer::brewer.pal(n = 9, name = "Blues")
+  ) +
+  guides(
+    fill =
+      guide_colorbar(
+        barheight = 0.5,
+        barwidth = 15,
+        title = "Journals",
+        title.vjust = 1,
+      )
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom")
+```
+
+<img src="ojs_global_paper_files/figure-gfm/unnamed-chunk-8-1.png" width="100%" />
+
+------------------------------------------------------------------------
+
+<br/><br/>
+
+## JUOJS Growth (2010-20)
+
+``` r
+ read_csv(here::here("data/beacon-public.csv")) %>% 
+  select(context_name, record_count_2010:record_count_2020) %>% 
+  pivot_longer(cols = starts_with("record_count")) %>% 
+  mutate(
+    name = parse_number(name)
+  ) %>% 
+  filter(value >= 5) %>% 
+  count(name) %>%
+  mutate(name = as.integer(name)) %>% 
+  ggplot(aes(name, n)) +
+  geom_line() +
+  geom_point(size = 2) +
+  theme_classic() +
+  scale_x_continuous(breaks = seq(2010, 2020, 1)) +
+  scale_y_continuous(breaks = seq(0, 25000, 5000)) +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 10),
+    axis.ticks = element_blank(),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  labs(
+    x = "Year",
+    y = "Journals",
+  )
+```
+
+<img src="ojs_global_paper_files/figure-gfm/unnamed-chunk-9-1.png" width="100%" />
+
+------------------------------------------------------------------------
+
+<br/><br/>
+
 ## Assessing overlaps
 
 ### Web of Science
@@ -201,7 +325,7 @@ df %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 ### Scopus
 
@@ -283,7 +407,7 @@ bind_rows(df_join_a, df_join_b) %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 ### Dimensions
 
@@ -366,7 +490,7 @@ bind_rows(df_join_a, df_join_b) %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ### EBSCO Host
 
@@ -425,7 +549,7 @@ df %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
 
 ### Google Scholar
 
@@ -551,7 +675,7 @@ bind_cols(
   labs(x = "Country", y = "Total journals")
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
 
 Number of citations on first Scholar page:
 
@@ -688,7 +812,7 @@ bind_rows(df_join_a, df_join_b) %>%
   )
 ```
 
-![](ojs_global_paper_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
 
 Latin American countries for JUOJS:
 
@@ -705,3 +829,40 @@ df %>%
     ##       n
     ##   <int>
     ## 1  6319
+
+------------------------------------------------------------------------
+
+<br/><br/>
+
+## Top 100 cited journal domains
+
+``` r
+df_lang_disc <-
+  read_csv(here::here("data/OJS_languages_disciplines.csv")) %>%
+  select(journal_url, language, discipline, journal_name = context_name) %>% 
+  remove_empty()
+
+bind_cols(
+  df_lang_disc,
+  df_lang_disc %>% pull(journal_url) %>% domain() %>% tld_extract()
+) %>% 
+  transmute(
+    domain = str_replace(domain, "^https://", ""),
+    domain = str_replace(domain, "^http://", ""),
+    domain = str_replace(domain, "^www108.", ""),
+    domain = str_replace(domain, "^www5.", ""),
+    domain = str_replace(domain, "^www3.", ""),
+    domain = str_replace(domain, "^www2.", ""),
+    domain = str_replace(domain, "^www.", ""),
+    language, discipline
+  ) %>%
+  distinct(domain, .keep_all = T) %>% 
+  inner_join(domains_in_scholar, by = "domain") %>% 
+  arrange(desc(n_citations)) %>% 
+  mutate(domain = str_c('<a href="http://', domain, '" target="_blank">', domain, '</a>')) %>%
+  select(`Journal Domain` = domain, `Language` = language, `Discipline` = discipline, `Scholar First Page Citations` = n_citations) %>% 
+  head(100) %>% 
+  DT::datatable(escape = F, options = list(pageLength = 10))
+```
+
+![](ojs_global_paper_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
