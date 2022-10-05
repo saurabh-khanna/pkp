@@ -1,11 +1,17 @@
 ---
-title: "Assessing OJS overlaps with scientometric databases"
+title: "Analysis for OJS Global Paper"
+author: "Saurabh Khanna, Jon Ball, Juan Pablo Alperin, John Willinsky"
 date: "Updated: `r format(Sys.Date(), format='%B %d, %Y')`"
 output:
-  github_document:
+  html_document:
+    df_print: paged
+    code_folding: show
     toc: true
     toc_depth: 6
+    highlight: haddock
+    theme: journal
     number_sections: no
+    toc_float: yes
 ---
 
 ---
@@ -15,6 +21,14 @@ output:
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 ```
 
+
+Current preprint available [here](https://preprints.scielo.org/index.php/scielo/preprint/view/4729).
+
+---
+
+<br/><br/>
+
+## Loading and cleaning beacon data
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
@@ -35,7 +49,7 @@ canada.states <-
 shapefile <-
   read_sf(here::here("data/TM_WORLD_BORDERS_SIMPL-0.3.shp")) %>%
   clean_names() %>%
-  filter(name %in% c("Western Sahara", "Morocco")) %>% 
+  filter(name %in% c("Western Sahara", "Morocco")) %>% # handling boundary issues for morocco and western sahara
   mutate(name = if_else(name == "Western Sahara", "Morocco", name)) %>%
   arrange(name) %>%
   group_by(name) %>%
@@ -54,8 +68,6 @@ shapefile <-
   )
 ```
 
-
-## Cleaning raw beacon data
 
 ```{r}
 # Cleaning oai urls
