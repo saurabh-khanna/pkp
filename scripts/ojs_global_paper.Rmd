@@ -5,7 +5,7 @@ date: "Updated: `r format(Sys.Date(), format='%B %d, %Y')`"
 output:
   html_document:
     df_print: paged
-    code_folding: show
+    code_folding: hide
     toc: true
     toc_depth: 6
     highlight: haddock
@@ -32,7 +32,7 @@ Current preprint available [here](https://preprints.scielo.org/index.php/scielo/
 
 ```{r message=FALSE, warning=FALSE}
 # Libraries
-pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly, readxl)
+pacman::p_load(tidyverse, countrycode, sf, state, htmltools, htmlwidgets, urltools, janitor, DT, RColorBrewer, plotly, readxl, rvest)
 
 # raw beacon data
 df <- read_csv(here::here("data/beacon-public.csv")) 
@@ -809,13 +809,26 @@ df %>%
 
 <br/><br/>
 
-## Top 100 cited journal domains
+## Citation analysis
+
+### Top 100 cited journal domains
 
 ```{r}
 df_lang_disc <-
   read_csv(here::here("data/OJS_languages_disciplines.csv")) %>%
   select(journal_url, language, discipline, journal_name = context_name) %>% 
   remove_empty()
+
+ojs_domains <-
+  df %>% 
+  mutate(domain = str_remove_all(domain, "^www.")) %>% 
+  distinct(domain) %>% 
+  pull(domain) %>% 
+  suffix_extract() %>% 
+  transmute(domain = str_c(domain, suffix, sep = ".")) %>% 
+  distinct(domain) %>% 
+  pull(domain)
+
 
 bind_cols(
   df_lang_disc,
@@ -839,5 +852,194 @@ bind_cols(
   head(100) %>% 
   DT::datatable(escape = F, options = list(pageLength = 10))
 ```
+
+<br/><br/>
+
+### Analysing citations for the Journal of Statistical Software (English)
+
+- The journal domain is hosted [here](https://www.jstatsoft.org/index).
+- The top citations for this journal's most cited article is [here](https://scholar.google.com/scholar?cites=3069375885583311800&as_sdt=2005&sciodt=0,5&hl=en&inst=5746887945952177237).
+
+
+```{r}
+process_html <- function(html_content) {
+  df_mini <-
+    tibble(
+      article = html_content %>% 
+        html_nodes(".gs_ri .gs_rt a") %>% 
+        html_text(),
+      domain = html_content %>% 
+        html_nodes(".gs_ri .gs_rt a") %>% 
+        html_attr("href") %>% 
+        domain() %>%
+        suffix_extract() %>% 
+        transmute(domain = str_c(domain, suffix, sep = ".")) %>% 
+        pull(domain),
+      # citations = html_content %>% 
+      #   html_nodes(".gs_ri .gs_fl a") %>% 
+      #   html_text() %>% 
+      #   str_subset("^Cited by ") %>% 
+      #   parse_number()
+    ) %>% 
+    mutate(
+      domain_in_ojs = if_else(domain %in% ojs_domains, "Yes", "No"),
+      domain = if_else(domain == "google.com", "books.google.com", domain)  
+    ) %>% 
+    # arrange(desc(citations)) %>% 
+    clean_names(case = "title") %>% 
+    rename(`JUOJS Domain` = `Domain in Ojs`, `Article/Book` = `Article`) 
+  
+  return(df_mini)
+}
+```
+
+
+```{r, eval=F}
+html_content1 <- read_html("https://scholar.google.com/scholar?cites=3069375885583311800&as_sdt=2005&sciodt=0,5&hl=en&inst=574688794952177237")
+html_content2 <- read_html("https://scholar.google.com/scholar?start=10&hl=en&as_sdt=2005&sciodt=0,5&cites=3069375885583311800&scipsc=&inst=5746887945952177237")
+html_content3 <- read_html("https://scholar.google.com/scholar?start=20&hl=en&as_sdt=2005&sciodt=0,5&cites=3069375885583311800&scipsc=&inst=5746887945952177237")
+html_content4 <- read_html("https://scholar.google.com/scholar?start=30&hl=en&as_sdt=2005&sciodt=0,5&cites=3069375885583311800&scipsc=&inst=5746887945952177237")
+html_content5 <- read_html("https://scholar.google.com/scholar?start=40&hl=en&as_sdt=2005&sciodt=0,5&cites=3069375885583311800&scipsc=&inst=5746887945952177237")
+html_content6 <- read_html("https://scholar.google.com/scholar?start=50&hl=en&as_sdt=2005&sciodt=0,5&cites=3069375885583311800&scipsc=&inst=5746887945952177237")
+html_content7 <- read_html("https://scholar.google.com/scholar?start=60&hl=en&as_sdt=2005&sciodt=0,5&cites=3069375885583311800&scipsc=&inst=5746887945952177237")
+html_content8 <- read_html("https://scholar.google.com/scholar?start=70&hl=en&as_sdt=2005&sciodt=0,5&cites=3069375885583311800&scipsc=&inst=5746887945952177237")
+html_content9 <- read_html("https://scholar.google.com/scholar?start=80&hl=en&as_sdt=2005&sciodt=0,5&cites=3069375885583311800&scipsc=&inst=5746887945952177237")
+html_content10 <- read_html("https://scholar.google.com/scholar?start=90&hl=en&as_sdt=2005&sciodt=0,5&cites=3069375885583311800&scipsc=&inst=5746887945952177237")
+
+bind_rows(
+  `1` = process_html(html_content1),
+  `2` = process_html(html_content2),
+  `3` = process_html(html_content3),
+  `4` = process_html(html_content4),
+  `5` = process_html(html_content5),
+  `6` = process_html(html_content6),
+  `7` = process_html(html_content7),
+  `8` = process_html(html_content8),
+  `9` = process_html(html_content9),
+  `10` = process_html(html_content10),
+  .id = "Page"
+) %>% view()
+  write_csv(here::here("data/citation_samples/english.csv"))
+```
+
+```{r}
+read_csv(here::here("data/citation_samples/english.csv")) %>% 
+  select(-Citations) %>% 
+  DT::datatable()  
+```
+
+
+JUOJS vs non-JUOJS domains among citations:
+
+```{r}
+read_csv(here::here("data/citation_samples/english.csv")) %>% 
+  count(`JUOJS Domain`, name = "Count")
+```
+
+
+<br/><br/>
+
+### Analysing citations for the UNY Journal (Indonesian)
+
+- The journal domain is hosted [here](https://journal.uny.ac.id/).
+- The top citations for this journal's most cited article is [here](https://scholar.google.com/scholar?cites=6422621221779132632&as_sdt=2005&sciodt=0,5&hl=en&inst=5746887945952177237).
+
+
+```{r, eval=F}
+html_content1 <- read_html("https://scholar.google.com/scholar?cites=6422621221779132632&as_sdt=2005&sciodt=0,5&hl=en&inst=5746887945952177237")
+html_content2 <- read_html("https://scholar.google.com/scholar?start=10&hl=en&as_sdt=2005&sciodt=0,5&cites=6422621221779132632&scipsc=&inst=5746887945952177237")
+html_content3 <- read_html("https://scholar.google.com/scholar?start=20&hl=en&as_sdt=2005&sciodt=0,5&cites=6422621221779132632&scipsc=&inst=5746887945952177237")
+html_content4 <- read_html("https://scholar.google.com/scholar?start=30&hl=en&as_sdt=2005&sciodt=0,5&cites=6422621221779132632&scipsc=&inst=5746887945952177237")
+html_content5 <- read_html("https://scholar.google.com/scholar?start=40&hl=en&as_sdt=2005&sciodt=0,5&cites=6422621221779132632&scipsc=&inst=5746887945952177237")
+html_content6 <- read_html("https://scholar.google.com/scholar?start=50&hl=en&as_sdt=2005&sciodt=0,5&cites=6422621221779132632&scipsc=&inst=5746887945952177237")
+html_content7 <- read_html("https://scholar.google.com/scholar?start=60&hl=en&as_sdt=2005&sciodt=0,5&cites=6422621221779132632&scipsc=&inst=5746887945952177237")
+html_content8 <- read_html("https://scholar.google.com/scholar?start=70&hl=en&as_sdt=2005&sciodt=0,5&cites=6422621221779132632&scipsc=&inst=5746887945952177237")
+html_content9 <- read_html("https://scholar.google.com/scholar?start=80&hl=en&as_sdt=2005&sciodt=0,5&cites=6422621221779132632&scipsc=&inst=5746887945952177237")
+html_content10 <- read_html("https://scholar.google.com/scholar?start=90&hl=en&as_sdt=2005&sciodt=0,5&cites=6422621221779132632&scipsc=&inst=5746887945952177237")
+
+bind_rows(
+  `1` = process_html(html_content1),
+  `2` = process_html(html_content2),
+  `3` = process_html(html_content3),
+  `4` = process_html(html_content4),
+  `5` = process_html(html_content5),
+  `6` = process_html(html_content6),
+  `7` = process_html(html_content7),
+  `8` = process_html(html_content8),
+  `9` = process_html(html_content9),
+  `10` = process_html(html_content10),
+  .id = "Page"
+) %>%
+  write_csv(here::here("data/citation_samples/indonesian.csv"))
+```
+
+
+```{r}
+read_csv(here::here("data/citation_samples/indonesian.csv")) %>% 
+  DT::datatable()  
+```
+
+
+JUOJS vs non-JUOJS domains among citations:
+
+```{r}
+read_csv(here::here("data/citation_samples/indonesian.csv")) %>% 
+  count(`JUOJS Domain`, name = "Count")
+```
+
+
+
+
+<br/><br/>
+
+### Analysing citations for Portal de Periodicos UFSC (Portuguese)
+
+- The journal domain is hosted [here](https://periodicos.bu.ufsc.br/).
+- The top citations for this journal's most cited article is [here](https://scholar.google.com/scholar?cites=12229533173691059082&as_sdt=2005&sciodt=0,5&hl=en&inst=5746887945952177237).
+
+
+```{r, eval=F}
+html_content1 <- read_html("https://scholar.google.com/scholar?cites=12229533173691059082&as_sdt=2005&sciodt=0,5&hl=en&inst=5746887945952177237")
+html_content2 <- read_html("https://scholar.google.com/scholar?start=10&hl=en&as_sdt=2005&sciodt=0,5&cites=12229533173691059082&scipsc=&inst=5746887945952177237")
+html_content3 <- read_html("https://scholar.google.com/scholar?start=20&hl=en&as_sdt=2005&sciodt=0,5&cites=12229533173691059082&scipsc=&inst=5746887945952177237")
+html_content4 <- read_html("https://scholar.google.com/scholar?start=30&hl=en&as_sdt=2005&sciodt=0,5&cites=12229533173691059082&scipsc=&inst=5746887945952177237")
+html_content5 <- read_html("https://scholar.google.com/scholar?start=40&hl=en&as_sdt=2005&sciodt=0,5&cites=12229533173691059082&scipsc=&inst=5746887945952177237")
+html_content6 <- read_html("https://scholar.google.com/scholar?start=50&hl=en&as_sdt=2005&sciodt=0,5&cites=12229533173691059082&scipsc=&inst=5746887945952177237")
+html_content7 <- read_html("https://scholar.google.com/scholar?start=60&hl=en&as_sdt=2005&sciodt=0,5&cites=12229533173691059082&scipsc=&inst=5746887945952177237")
+html_content8 <- read_html("https://scholar.google.com/scholar?start=70&hl=en&as_sdt=2005&sciodt=0,5&cites=12229533173691059082&scipsc=&inst=5746887945952177237")
+html_content9 <- read_html("https://scholar.google.com/scholar?start=80&hl=en&as_sdt=2005&sciodt=0,5&cites=12229533173691059082&scipsc=&inst=5746887945952177237")
+html_content10 <- read_html("https://scholar.google.com/scholar?start=90&hl=en&as_sdt=2005&sciodt=0,5&cites=12229533173691059082&scipsc=&inst=5746887945952177237")
+
+bind_rows(
+  `1` = process_html(html_content1),
+  `2` = process_html(html_content2),
+  `3` = process_html(html_content3),
+  `4` = process_html(html_content4),
+  `5` = process_html(html_content5),
+  `6` = process_html(html_content6),
+  `7` = process_html(html_content7),
+  `8` = process_html(html_content8),
+  `9` = process_html(html_content9),
+  `10` = process_html(html_content10),
+  .id = "Page"
+) %>%
+  write_csv(here::here("data/citation_samples/portuguese.csv"))
+```
+
+
+```{r}
+read_csv(here::here("data/citation_samples/portuguese.csv")) %>% 
+  DT::datatable()  
+```
+
+
+JUOJS vs non-JUOJS domains among citations:
+
+```{r}
+read_csv(here::here("data/citation_samples/portuguese.csv")) %>% 
+  count(`JUOJS Domain`, name = "Count")
+```
+
+
 
 
