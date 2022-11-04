@@ -415,7 +415,7 @@ df_join_a <-
     issn = str_replace(issn, "-", "")
   ) %>%
   distinct(issn, .keep_all = T) %>% 
-  inner_join(df_dimensions %>% select(-e_issn), by = "issn")
+  anti_join(df_dimensions %>% select(-e_issn), by = "issn")
 
 # join B (issn to e-issn)
 df_join_b <-
@@ -427,7 +427,7 @@ df_join_b <-
     issn = str_replace(issn, "-", "")
   ) %>%
   distinct(issn, .keep_all = T) %>% 
-  inner_join(df_dimensions %>% select(-issn), by = c("issn" = "e_issn"))
+  anti_join(df_dimensions %>% select(-issn), by = c("issn" = "e_issn"))
 
 bind_rows(df_join_a, df_join_b) %>% 
   distinct() %>% 
@@ -435,6 +435,14 @@ bind_rows(df_join_a, df_join_b) %>%
 
 #12435/22809
 #12435/72990
+
+df_join_a %>% 
+  inner_join(df_join_b) %>% 
+  distinct() %>% 
+  count(country) %>% 
+  arrange(-n)
+
+df %>% count(country) %>% arrange(-n)
 ```
 
 Top 10 countries in overlap:
