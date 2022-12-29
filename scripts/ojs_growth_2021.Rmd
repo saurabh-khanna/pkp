@@ -80,7 +80,7 @@ df <-
     version_clean = case_when(
       ojs_v2 ~ "Version 2",
       ojs_v3 ~ "Version 3",
-      TRUE ~ "Other"
+      TRUE ~ NA_character_
     )
   ) %>% 
   mutate(
@@ -152,11 +152,17 @@ df <-
 df_2021 <-
   df %>% 
   filter(total_record_count > 0, application == "ojs") %>%
+  filter(total_record_count >= record_count_2021) %>%
   distinct(oai_url, repository_name, set_spec, .keep_all = T) %>%
   mutate(active = (record_count_2021 >= 5)) %>% 
   filter(active)
 
 n_active_journals <- nrow(df_2021)
+```
+
+```{r, eval=F}
+df_2021 %>% 
+  filter(str_detect(country, "Spain")) %>% count(domain) %>% arrange(-n)
 ```
 
 
@@ -203,7 +209,7 @@ shapefile %>%
     total = pmin(total, 500)
   ) %>%
   ggplot() +
-  geom_sf(aes(fill = total), size = 0.1, color = "gray", show.legend = T) +
+  geom_sf(aes(fill = total), lwd = 0, color = "gray", show.legend = T) +
   scale_fill_gradientn(
     breaks = seq(0, 500, 100),
     labels = labels,
@@ -220,7 +226,58 @@ shapefile %>%
   ) +
   theme_void() +
   theme(legend.position = "bottom")
+
+ggsave(here::here("ojs_map_2021.png"))
 ```
+
+
+
+```{r, eval=F, fig.retina=4, out.width="100%"}
+# map for OJS website footer
+shapefile %>% 
+  clean_names() %>%
+  rename(country = name) %>%
+  mutate(
+    country = if_else(country == "Libyan Arab Jamahiriya", "Libya", country),
+    country = if_else(country == "United Republic of Tanzania", "Tanzania", country),
+    country = if_else(country == "Cote d'Ivoire", "Côte d'Ivoire", country),
+    country = if_else(country == "Congo", "Republic of the Congo", country),
+    country = if_else(country == "Viet Nam", "Vietnam", country),
+    country = if_else(str_detect(country, "Iran"), "Iran", country),
+    country = if_else(str_detect(country, "Korea, Republic of"), "South Korea", country),
+    country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
+    country = if_else(str_detect(country, "Surinam"), "Surinam", country)
+  ) %>%
+  left_join(df_world, by = "country") %>%
+  filter(total > 0 | area > 1000) %>% 
+  filter(country != "Antarctica") %>% 
+  mutate(
+    total = replace_na(total, 0),
+    total = pmin(total, 500)
+  ) %>%
+  ggplot() +
+  geom_sf(aes(fill = total), lwd = 0, show.legend = T) +
+  scale_fill_gradientn(
+    breaks = seq(0, 500, 100),
+    labels = labels,
+    colors = gray.colors(9, start = 0.3, end = 0.9, gamma = 2.2),
+  ) +
+  guides(
+    fill =
+      guide_colorbar(
+        barheight = 0.6,
+        barwidth = 20,
+        title = "Journals",
+        title.vjust = 1,
+      )
+  ) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  theme(legend.text=element_text(size=12, color = "white"), legend.title=element_text(size=14, color = "white"))
+
+ggsave(here::here("ojs_map_2021_footer.png"))
+```
+
 
 <br/>
 
@@ -234,6 +291,21 @@ df_world %>%
   DT::datatable()
 ```
 
+
+<br/>
+
+## Active Journals using OJS in 2021 by Region
+
+```{r}
+df_2021 %>%
+  drop_na(country) %>%
+  inner_join(read_csv(here::here("data/country-regions.csv"))) %>% 
+  tabyl(`sub-region`) %>% 
+  as_tibble() %>% 
+  arrange(-n) %>% 
+  transmute(Region = `sub-region`, Total = n, Percent = str_c(round(percent * 100, 2), "%")) %>%
+  DT::datatable(options = list(pageLength = 25))
+```
 
 
 <br/>

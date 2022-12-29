@@ -99,8 +99,10 @@ df_2021 <-
   mutate(active = (record_count_2021 >= 5)) %>% filter(active) %>% 
   distinct(oai_url, repository_name, set_spec, .keep_all = T)
 
-df_2021 %>% 
-  count(country) %>% arrange(-n)
+df_2020 %>% 
+  count(country) %>%
+  drop_na(country) %>% 
+  arrange(-n)
 ```
 
 

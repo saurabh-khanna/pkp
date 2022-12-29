@@ -192,7 +192,7 @@ shapefile %>%
     country = if_else(str_detect(country, "Korea, Democratic People's Republic of"), "North Korea", country),
     country = if_else(str_detect(country, "Surinam"), "Surinam", country)
   ) %>%
-  left_join(df_world, by = "country") %>% #arrange(area) %>% select(country, total, area)
+  left_join(df_world, by = "country") %>% # arrange(area) %>% select(country, total, area)
   filter(total > 0 | area > 1000) %>% 
   filter(country != "Antarctica") %>% 
   mutate(
